@@ -15,6 +15,7 @@ public static class ByteExtensions
                 yield return i;
             }
         }
+
         yield return x;
     }
 }

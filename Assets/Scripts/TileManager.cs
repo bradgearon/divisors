@@ -86,24 +86,48 @@ public class TileManager : MonoBehaviour
         }
     }
 
+    
+
     IEnumerator RandomizeTiles()
     {
+        var range = Enumerable.Range(Min, Max + 1);
+        var factors = BuildFactors(range).ToArray();
+
         for (var i = 0; i < _tiles.Length; i++)
         {
             var tile = _tiles[i];
 
             var color = Random.Range(0, ColorSettings.Length);
-            var number = (byte) Random.Range(Min, Max);
+            var factorIndex = Random.Range(0, factors.Count() - 1);
+            var number = factors[factorIndex];
 
             tile.Image.color = ColorSettings[color].BackColor;
             tile.Text.color = ColorSettings[color].TextColor;
             tile.Number = number;
             
-            yield return 0;
             var score = CalculateScore(tile);
         }
 
         yield return 0;
+    }
+
+    private IEnumerable<byte> BuildFactors(IEnumerable<int> range)
+    {
+        var factors = new List<byte>();
+        var exclude = new byte[] { 1 };
+
+        foreach (byte f in range)
+        {
+            var facts = f.Factors()
+                .Except(exclude);
+
+            if (f < 6 || facts.Count() > 2)
+            {
+                factors.Add(f);
+            }
+        }
+
+        return factors.Distinct();
     }
 
     private byte CalculateScore(Tile tile)
