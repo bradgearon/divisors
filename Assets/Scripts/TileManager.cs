@@ -14,11 +14,12 @@ public class TileManager : MonoBehaviour
     public Transform TileContainer;
     public ColorSetting[] ColorSettings = new ColorSetting[10];
 
-    public int Min = 2; 
+    public int Min = 2;
     public int Max = 99;
-    
+
     private Tile[] _tiles = new Tile[30];
-    
+    private byte[] _possible;
+
     void Start()
     {
         if (TileContainer == null) return;
@@ -28,6 +29,9 @@ public class TileManager : MonoBehaviour
 
         InitTiles(imageElements, textElements);
         SetLinks();
+
+        var range = Enumerable.Range(Min, Max + 1);
+        _possible = BuildFactors(range).ToArray();
 
         StartCoroutine(RandomizeTiles());
     }
@@ -70,45 +74,61 @@ public class TileManager : MonoBehaviour
                 _tiles[i].Bottom = _tiles[bottom];
             }
 
+            // if its a new row
+            // stop left and right
+            // if at the last in the row
+            var isFirst = i > 5 && (i - 1) % 5 == 0;
+            var isLast = (i + 1) % 5 == 0;
+
             // left
             var left = i - 1;
-            if (left >= 0)
+            if (!isFirst && left >= 0)
             {
                 _tiles[i].Left = _tiles[left];
             }
 
             // right
             var right = i + 1;
-            if (right < _tiles.Length)
+            // todo: limit this to the current row
+            if (!isLast && right < _tiles.Length)
             {
                 _tiles[i].Right = _tiles[right];
             }
         }
     }
 
-    
+
 
     IEnumerator RandomizeTiles()
     {
-        var range = Enumerable.Range(Min, Max + 1);
-        var factors = BuildFactors(range).ToArray();
-
         for (var i = 0; i < _tiles.Length; i++)
         {
             var tile = _tiles[i];
 
             var color = Random.Range(0, ColorSettings.Length);
-            var factorIndex = Random.Range(0, factors.Count() - 1);
-            var number = factors[factorIndex];
+            var number = GetNumber();
 
             tile.Image.color = ColorSettings[color].BackColor;
             tile.Text.color = ColorSettings[color].TextColor;
             tile.Number = number;
-            
-            var score = CalculateScore(tile);
+        }
+
+        for (var iw = 0; iw < 5; iw++)
+        {
+            foreach (var tile in _tiles)
+            {
+                RemoveMatches(tile);
+            }
         }
 
         yield return 0;
+    }
+
+    private byte GetNumber()
+    {
+        var factorIndex = Random.Range(0, _possible.Count() - 1);
+        var number = _possible[factorIndex];
+        return number;
     }
 
     private IEnumerable<byte> BuildFactors(IEnumerable<int> range)
@@ -130,10 +150,8 @@ public class TileManager : MonoBehaviour
         return factors.Distinct();
     }
 
-    private byte CalculateScore(Tile tile)
+    private void RemoveMatches(Tile tile)
     {
-        var score = (byte) 100;
-
         var leftRank = 0;
         var topRank = 0;
 
@@ -142,28 +160,58 @@ public class TileManager : MonoBehaviour
 
         // move up two
         var topMost = Move(tile, t => t.Top, 2, out topRank);
-        
+
         // for each that dont match
-        // subtract 100 - (distance * 25)
-
-        // check left to right for matches
-        var rank = 0;
-        while (rank < 5)
+        var leftMatchCount = 0;
+        var topMatchCount = 0;
+        do
         {
-            var result = 0;
-            if (result == 0)
-            {
-                break;
-            }
-            rank ++;
-        }
+            leftMatchCount = GetMatches(leftMost, t => t.Right, t => t.Number = GetNumber());
+            topMatchCount = GetMatches(topMost, t => t.Bottom, t => t.Number = GetNumber());
 
-        // check top to bottom for matches
-        
-        
-        
-        
-        return score;
+        }
+        while (leftMatchCount > 1 || topMatchCount > 1);
+    }
+
+    private int GetMatches(Tile current, Func<Tile, Tile> direction, Action<Tile> onMatch)
+    {
+        var factors = current.Number.Factors()
+            .ToArray();
+
+        var exclude = new byte[] { 1 };
+
+        var matchCount = 1;
+        var moved = 0;
+
+        do
+        {
+            factors = factors
+                .Except(exclude)
+                .Intersect(current.Number.Factors())
+                .ToArray();
+
+
+            if (factors.Any())
+            {
+                matchCount++;
+            }
+            else
+            {
+                matchCount = 1;
+            }
+
+            if (matchCount > 2)
+            {
+                onMatch(current);
+            }
+            else
+            {
+                current = Move(current, direction, 1, out moved);
+            }
+
+        } while (moved != 0);
+
+        return matchCount;
     }
 
     private Tile Move(Tile tile, Func<Tile, Tile> func, int distance, out int rank)
@@ -180,20 +228,6 @@ public class TileManager : MonoBehaviour
         return tile;
     }
 
-    private byte GetMatches(Func<Tile> direction, IEnumerable<byte> factors)
-    {
-        var tile = direction();
-        if (tile == null)
-        {
-            return 0;
-        }
-
-        return tile.Number.Factors()
-            .DefaultIfEmpty()
-            .Intersect(factors)
-            .OrderBy(factor => factor)
-            .FirstOrDefault();
-    }
 }
 
 
