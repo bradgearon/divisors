@@ -9,7 +9,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
-public class TileManager : MonoBehaviour
+public class TileManager : MonoBehaviour, ITileManager
 {
     public Transform TileContainer;
     public ColorSetting[] ColorSettings = new ColorSetting[10];
@@ -34,6 +34,46 @@ public class TileManager : MonoBehaviour
         _possible = BuildFactors(range).ToArray();
 
         StartCoroutine(RandomizeTiles());
+    }
+
+    /// <summary>
+    /// first the first tile with matching id
+    /// </summary>
+    /// <param name="toFind"></param>
+    /// <returns></returns>
+    public Tile FindMatchingTile(Transform toFind)
+    {
+        return _tiles.FirstOrDefault(tile => 
+            tile.Image.gameObject.GetInstanceID() == toFind.gameObject.GetInstanceID());
+    }
+
+    /// <summary>
+    /// finds matches <-- and ^^ two from starting point
+    /// </summary>
+    /// <param name="current">starting point</param>
+    /// <returns>a list of lists... of tiles</returns>
+    public IEnumerable<List<Tile>> FindMatches(Tile current)
+    {
+        Tile left;
+        Tile top;
+
+        MoveToTopLeft(current, out left, out top);
+
+        var matches = new List<Tile>();
+        var leftMatchCount = GetMatches(left, t => t.Right, matches.Add);
+        if (matches.Count > 2)
+        {
+            yield return matches;
+        }
+
+        matches = new List<Tile>();
+        var topMatchCount = GetMatches(top, t => t.Bottom, matches.Add);
+        if (matches.Count > 2)
+        {
+            yield return matches;
+        }
+
+        yield return null;
     }
 
     /// <summary>
@@ -77,7 +117,7 @@ public class TileManager : MonoBehaviour
             // if its a new row
             // stop left and right
             // if at the last in the row
-            var isFirst = i > 5 && (i - 1) % 5 == 0;
+            var isFirst = i > 4 && i % 5 == 0;
             var isLast = (i + 1) % 5 == 0;
 
             // left
@@ -98,7 +138,10 @@ public class TileManager : MonoBehaviour
     }
 
 
-
+    /// <summary>
+    /// generates the numbers!
+    /// </summary>
+    /// <returns>ur mom</returns>
     IEnumerator RandomizeTiles()
     {
         for (var i = 0; i < _tiles.Length; i++)
@@ -124,6 +167,10 @@ public class TileManager : MonoBehaviour
         yield return 0;
     }
 
+    /// <summary>
+    /// generates a number
+    /// </summary>
+    /// <returns>the number...</returns>
     private byte GetNumber()
     {
         var factorIndex = Random.Range(0, _possible.Count() - 1);
@@ -131,6 +178,11 @@ public class TileManager : MonoBehaviour
         return number;
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="range"></param>
+    /// <returns></returns>
     private IEnumerable<byte> BuildFactors(IEnumerable<int> range)
     {
         var factors = new List<byte>();
@@ -150,16 +202,12 @@ public class TileManager : MonoBehaviour
         return factors.Distinct();
     }
 
-    private void RemoveMatches(Tile tile)
+    private void RemoveMatches(Tile current)
     {
-        var leftRank = 0;
-        var topRank = 0;
+        var leftMost = current;
+        var topMost = current;
 
-        // move left two
-        var leftMost = Move(tile, t => t.Left, 2, out leftRank);
-
-        // move up two
-        var topMost = Move(tile, t => t.Top, 2, out topRank);
+        MoveToTopLeft(current, out leftMost, out topMost);
 
         // for each that dont match
         var leftMatchCount = 0;
@@ -168,9 +216,20 @@ public class TileManager : MonoBehaviour
         {
             leftMatchCount = GetMatches(leftMost, t => t.Right, t => t.Number = GetNumber());
             topMatchCount = GetMatches(topMost, t => t.Bottom, t => t.Number = GetNumber());
-
         }
         while (leftMatchCount > 1 || topMatchCount > 1);
+    }
+
+    private void MoveToTopLeft(Tile tile, out Tile left, out Tile top)
+    {
+        var leftRank = 0;
+        var topRank = 0;
+
+        // move left two
+        left = Move(tile, t => t.Left, 2, out leftRank);
+
+        // move up two
+        top = Move(tile, t => t.Top, 2, out topRank);
     }
 
     private int GetMatches(Tile current, Func<Tile, Tile> direction, Action<Tile> onMatch)
