@@ -8,12 +8,8 @@ public class Tile
     public Image Image;
     public Text Text;
     
-    public Tile Top;
-    public Tile Left;
-    public Tile Right;
-    public Tile Bottom;
-
     private byte _number = 0;
+    public int Index = 0;
     public byte Number
     {
         get

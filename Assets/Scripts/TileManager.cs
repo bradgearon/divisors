@@ -9,26 +9,35 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
-public class TileManager : MonoBehaviour, ITileManager
+public class TileManager : MonoBehaviour,
+    ITileNavigator
 {
+    public static TileManager Instance
+    {
+        get { return _instance; }
+        set { _instance = value; }
+    }
+
     public Transform TileContainer;
     public ColorSetting[] ColorSettings = new ColorSetting[10];
 
     public int Min = 2;
     public int Max = 99;
 
+    private static TileManager _instance;
+
     private Tile[] _tiles = new Tile[30];
     private byte[] _possible;
 
     void Start()
     {
+        _instance = this;
         if (TileContainer == null) return;
 
         var imageElements = TileContainer.GetComponentsInChildren<Image>();
         var textElements = TileContainer.GetComponentsInChildren<Text>();
 
         InitTiles(imageElements, textElements);
-        SetLinks();
 
         var range = Enumerable.Range(Min, Max + 1);
         _possible = BuildFactors(range).ToArray();
@@ -43,7 +52,7 @@ public class TileManager : MonoBehaviour, ITileManager
     /// <returns></returns>
     public Tile FindMatchingTile(Transform toFind)
     {
-        return _tiles.FirstOrDefault(tile => 
+        return _tiles.FirstOrDefault(tile =>
             tile.Image.gameObject.GetInstanceID() == toFind.gameObject.GetInstanceID());
     }
 
@@ -54,25 +63,33 @@ public class TileManager : MonoBehaviour, ITileManager
     /// <returns>a list of lists... of tiles</returns>
     public IEnumerable<List<Tile>> FindMatches(Tile current)
     {
+        Debug.Log("enter find matches");
         Tile left;
         Tile top;
 
+        Debug.Log("enter move to top left");
         MoveToTopLeft(current, out left, out top);
+        Debug.Log("exit move to top left");
 
         var matches = new List<Tile>();
-        var leftMatchCount = GetMatches(left, t => t.Right, matches.Add);
+        Debug.Log("getMatches left -> right; add");
+        var leftMatchCount = GetMatches(left, t => t.Right(), matches.Add);
         if (matches.Count > 2)
         {
+            Debug.Log("match count > 2 left -> right");
             yield return matches;
         }
 
         matches = new List<Tile>();
-        var topMatchCount = GetMatches(top, t => t.Bottom, matches.Add);
+        Debug.Log("getMatches top -> bottom; add");
+        var topMatchCount = GetMatches(top, t => t.Bottom(), matches.Add);
         if (matches.Count > 2)
         {
+            Debug.Log("match count > 2 top -> bottom");
             yield return matches;
         }
 
+        Debug.Log("yield return empty");
         yield return null;
     }
 
@@ -87,55 +104,13 @@ public class TileManager : MonoBehaviour, ITileManager
         {
             _tiles[i] = new Tile
             {
+                Index = i,
                 Text = textElements[i],
                 Image = imageElements[i]
             };
         }
     }
 
-    /// <summary>
-    /// sets up links between tiles
-    /// </summary>
-    private void SetLinks()
-    {
-        for (var i = 0; i < _tiles.Length; i++)
-        {
-            // top
-            var top = i - 5;
-            if (top >= 0)
-            {
-                _tiles[i].Top = _tiles[top];
-            }
-
-            // bottom
-            var bottom = i + 5;
-            if (bottom < _tiles.Length)
-            {
-                _tiles[i].Bottom = _tiles[bottom];
-            }
-
-            // if its a new row
-            // stop left and right
-            // if at the last in the row
-            var isFirst = i > 4 && i % 5 == 0;
-            var isLast = (i + 1) % 5 == 0;
-
-            // left
-            var left = i - 1;
-            if (!isFirst && left >= 0)
-            {
-                _tiles[i].Left = _tiles[left];
-            }
-
-            // right
-            var right = i + 1;
-            // todo: limit this to the current row
-            if (!isLast && right < _tiles.Length)
-            {
-                _tiles[i].Right = _tiles[right];
-            }
-        }
-    }
 
 
     /// <summary>
@@ -214,8 +189,8 @@ public class TileManager : MonoBehaviour, ITileManager
         var topMatchCount = 0;
         do
         {
-            leftMatchCount = GetMatches(leftMost, t => t.Right, t => t.Number = GetNumber());
-            topMatchCount = GetMatches(topMost, t => t.Bottom, t => t.Number = GetNumber());
+            leftMatchCount = GetMatches(leftMost, t => t.Right(), t => t.Number = GetNumber(), 2);
+            topMatchCount = GetMatches(topMost, t => t.Bottom(), t => t.Number = GetNumber(), 2);
         }
         while (leftMatchCount > 1 || topMatchCount > 1);
     }
@@ -226,21 +201,21 @@ public class TileManager : MonoBehaviour, ITileManager
         var topRank = 0;
 
         // move left two
-        left = Move(tile, t => t.Left, 2, out leftRank);
+        left = Move(tile, t => Left(t.Index), 2, out leftRank);
 
         // move up two
-        top = Move(tile, t => t.Top, 2, out topRank);
+        top = Move(tile, t => Top(t.Index), 2, out topRank);
     }
 
-    private int GetMatches(Tile current, Func<Tile, Tile> direction, Action<Tile> onMatch)
+    private int GetMatches(Tile current, Func<Tile, Tile> direction, Action<Tile> onMatch,
+        int matchCountMax = 1)
     {
-        var factors = current.Number.Factors()
-            .ToArray();
-
+        var factors = current.Number.Factors().ToArray();
         var exclude = new byte[] { 1 };
 
         var matchCount = 1;
         var moved = 0;
+        bool resetFactors = false;
 
         do
         {
@@ -248,7 +223,6 @@ public class TileManager : MonoBehaviour, ITileManager
                 .Except(exclude)
                 .Intersect(current.Number.Factors())
                 .ToArray();
-
 
             if (factors.Any())
             {
@@ -259,16 +233,14 @@ public class TileManager : MonoBehaviour, ITileManager
                 matchCount = 1;
             }
 
-            if (matchCount > 2)
+            if (matchCount > matchCountMax)
             {
                 onMatch(current);
             }
-            else
-            {
-                current = Move(current, direction, 1, out moved);
-            }
 
-        } while (moved != 0);
+            current = Move(current, direction, 1, out moved);
+        }
+        while (moved != 0);
 
         return matchCount;
     }
@@ -280,6 +252,7 @@ public class TileManager : MonoBehaviour, ITileManager
             var thisTile = func(tile);
             if (thisTile == null)
             {
+                rank = Math.Min(0, rank--);
                 break;
             }
             tile = thisTile;
@@ -287,6 +260,64 @@ public class TileManager : MonoBehaviour, ITileManager
         return tile;
     }
 
+    public void ReplaceTile(Tile sourceTile, Tile destinationTile)
+    {
+        var sourceIndex = sourceTile.Index;
+        var destinationIndex = destinationTile.Index;
+
+        sourceTile.Index = destinationIndex;
+        destinationTile.Index = sourceIndex;
+
+        _tiles[sourceIndex] = destinationTile;
+        _tiles[destinationIndex] = sourceTile;
+    }
+
+    public Tile Left(int i)
+    {
+        Tile tile = null;
+        var isFirst = i > 4 && i % 5 == 0;
+        var left = i - 1;
+
+        if (!isFirst && left >= 0)
+        {
+            tile = _tiles[left];
+        }
+        return tile;
+    }
+
+    public Tile Right(int i)
+    {
+        Tile tile = null;
+        var isLast = (i + 1) % 5 == 0;
+        var right = i + 1;
+        if (!isLast && right < _tiles.Length)
+        {
+            tile = _tiles[right];
+        }
+        return tile;
+    }
+
+    public Tile Top(int i)
+    {
+        Tile tile = null;
+        var top = i - 5;
+        if (top >= 0)
+        {
+            tile = _tiles[top];
+        }
+        return tile;
+    }
+
+    public Tile Bottom(int i)
+    {
+        Tile tile = null;
+        var bottom = i + 5;
+        if (bottom < _tiles.Length)
+        {
+            tile = _tiles[bottom];
+        }
+        return tile;
+    }
 }
 
 

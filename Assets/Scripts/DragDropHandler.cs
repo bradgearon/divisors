@@ -11,14 +11,7 @@ public class DragDropHandler : MonoBehaviour,
     IDropHandler, 
     IPointerEnterHandler
 {
-    private readonly ITileManager _tileManager;
     private Text _currentPointer;
-
-    [Construct]
-    public DragDropHandler(ITileManager tileManager)
-    {
-        _tileManager = tileManager;
-    }
 
     public void OnDrop(PointerEventData eventData)
     {
@@ -26,38 +19,48 @@ public class DragDropHandler : MonoBehaviour,
         {
             return;
         }
+        var tileManager = TileManager.Instance;
 
-        var sourceTile = _tileManager.FindMatchingTile(
+        Debug.Log("find matching first tile");
+        var dragged = tileManager.FindMatchingTile(
             eventData.selectedObject.gameObject.transform);
-        var destinationTile = _tileManager.FindMatchingTile(
+        Debug.Log("find matching dropped on to tile");
+        var droppedOn = tileManager.FindMatchingTile(
             _currentPointer.transform.parent);
-        if (sourceTile.Left != destinationTile && sourceTile.Right != destinationTile &&
-            sourceTile.Top != destinationTile && sourceTile.Bottom != destinationTile)
+
+        if (dragged.Left() != droppedOn 
+            && dragged.Right() != droppedOn 
+            && dragged.Top() != droppedOn 
+            && dragged.Bottom() != droppedOn)
         {
             return;
         }
 
-        var tile = new Tile
-        {
-            Bottom = destinationTile.Bottom,
-            Top = destinationTile.Top,
-            Left = destinationTile.Left,
-            Right = destinationTile.Right,
-            Image = sourceTile.Image,
-            Text = sourceTile.Text,
-            Number = sourceTile.Number
-        };
+        var draggedTransform = eventData.selectedObject.gameObject.transform;
+        var droppedOnTransform = _currentPointer.transform.parent;
 
-        var matches = _tileManager.FindMatches(tile).ToArray();
-        if (!matches.Any())
+        SwitchPositions(draggedTransform, droppedOnTransform);
+        tileManager.ReplaceTile(dragged, droppedOn);
+
+        var matches = tileManager.FindMatches(dragged).ToList();
+        matches.AddRange(tileManager.FindMatches(droppedOn));
+
+        if (matches.Any(m => m != null))
         {
             return;
         }
 
-        eventData.selectedObject.gameObject.transform
-                .DOMove(_currentPointer.transform.position, .5f);
-        _currentPointer.transform.parent
-            .DOMove(eventData.selectedObject.gameObject.transform.position, .5f);
+        SwitchPositions(droppedOnTransform, draggedTransform);
+        tileManager.ReplaceTile(dragged, droppedOn);
+        
+    }
+
+    private void SwitchPositions(Transform first, Transform second)
+    {
+        var secondPosition = second.position;
+        var firstPosition = first.position;
+        first.DOMove(secondPosition, .5f);
+        second.DOMove(firstPosition, .5f);
     }
 
     public void OnBeginDrag(PointerEventData eventData)
