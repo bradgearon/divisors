@@ -18,6 +18,7 @@ public class TileManager : MonoBehaviour,
         set { _instance = value; }
     }
 
+    public Vector2 DragBounds;
     public GameObject TilePrefab;
 
     public Transform TileContainer;
@@ -38,7 +39,7 @@ public class TileManager : MonoBehaviour,
 
     void Start()
     {
-        _tilePrefabInstance = (GameObject) Instantiate(TilePrefab);
+        _tilePrefabInstance = (GameObject)Instantiate(TilePrefab);
 
         _instance = this;
         if (TileContainer == null) return;
@@ -98,8 +99,31 @@ public class TileManager : MonoBehaviour,
         Debug.Log("exit move to top left");
 
         var matches = new List<Tile>();
+
+        Func<List<Tile>, Func<Tile, Tile>, List<Tile>> fixSequence = (m, direction) =>
+        {
+            for (var i = 0; i < m.Count - 1; i++)
+            {
+                if (m[i] == null)
+                {
+                    continue;
+                }
+
+                var next = i + 1;
+                if (m[i] != direction(m[next]))
+                {
+                    m[i] = null;
+                }
+            }
+
+            return m.Where(mm => mm != null).ToList();
+        };
+
+
+
         Debug.Log("getMatches left -> right; add");
         var leftMatchCount = GetMatches(left, t => t.Right(), matches.Add);
+        matches = fixSequence(matches, t => t.Left()).ToList();
         if (matches.Count > 2)
         {
             Debug.Log("match count > 2 left -> right");
@@ -109,6 +133,7 @@ public class TileManager : MonoBehaviour,
         matches = new List<Tile>();
         Debug.Log("getMatches top -> bottom; add");
         var topMatchCount = GetMatches(top, t => t.Bottom(), matches.Add);
+        matches = fixSequence(matches, t => t.Top()).ToList();
         if (matches.Count > 2)
         {
             Debug.Log("match count > 2 top -> bottom");
@@ -252,7 +277,7 @@ public class TileManager : MonoBehaviour,
             if (intersected.Any())
             {
                 factors = intersected;
-                matchCount++;            
+                matchCount++;
             }
             else
             {
@@ -265,7 +290,6 @@ public class TileManager : MonoBehaviour,
 
             if (matchCount > matchCountMax)
             {
-                animateDebug(current);
                 onMatch(current);
             }
 
@@ -286,20 +310,9 @@ public class TileManager : MonoBehaviour,
                 rank = Math.Min(0, rank--);
                 break;
             }
-            // animateDebug(thisTile);
             tile = thisTile;
         }
         return tile;
-    }
-
-    private void animateDebug(Tile thisTile)
-    {
-        thisTile.Image.transform.DOScale(new Vector3(1.5f, 1.5f, 1f), 1f).OnComplete(() =>
-        {
-            thisTile.Image.transform.DOScale(new Vector3(1f, 1f, 1f), 1f).WaitForCompletion();
-        });
-        
-
     }
 
     public void ReplaceTile(Tile sourceTile, Tile destinationTile)
@@ -372,14 +385,14 @@ public class TileManager : MonoBehaviour,
         // vertical matches
         if (Mathf.Approximately(firstRect.position.x, lastRect.position.x))
         {
-            centerPosition.y = firstRect.position.y + (.5f*(lastRect.position.y - firstRect.position.y));
+            centerPosition.y = firstRect.position.y + (.5f * (lastRect.position.y - firstRect.position.y));
         }
         // horizontal matches
         else
         {
             centerPosition.x = firstRect.position.x + (.5f * (lastRect.position.x - firstRect.position.x));
         }
-        
+
         var child = _tilePrefabInstance;
         child.transform.SetParent(Panel);
         child.transform.localScale = Vector3.one;
@@ -389,7 +402,7 @@ public class TileManager : MonoBehaviour,
         var text = child.GetComponentInChildren<Text>();
 
         var factors = Enumerable.Empty<byte>();
-        factors = matches.ToArray().Aggregate(factors, (current, match) => 
+        factors = matches.ToArray().Aggregate(factors, (current, match) =>
             current.Union(match.Number.Factors()))
             .OrderBy(factor => factor);
 
@@ -399,7 +412,7 @@ public class TileManager : MonoBehaviour,
 
         image.transform.DOLocalMove(new Vector3(0, 10f), .25f);
         yield return image.transform.DOScale(new Vector3(2f, 2f, 1f), .75f).WaitForCompletion();
-        
+
         text.DOFade(0f, .5f);
         image.DOFade(0f, .5f);
     }
@@ -414,23 +427,93 @@ public class TileManager : MonoBehaviour,
             instruction = tile.Text.DOFade(0f, 1f).WaitForCompletion();
             tile.Number = 0;
         }
-        
+
         return instruction;
     }
 
 
-    public YieldInstruction FillTiles()
+    public IEnumerator FillTiles()
     {
-        YieldInstruction instruction = null;
-        var emptyTiles = _tiles.Where(t => t.Number == 0).ToArray();
-        RandomizeTiles();
+        var last = _tiles.Last();
+        var bottom = last;
+        var newArray = new Tile[30];
 
-        foreach (var tile in emptyTiles)
+        while (bottom != null)
         {
-            tile.Image.DOFade(1f, 1f);
-            instruction = tile.Text.DOFade(1f, 1f).WaitForCompletion();
+            var empty = 0;
+            var current = bottom;
+            var lastPosition = bottom.Image.transform.position;
+            var first = _tiles[bottom.Index - 25];
+            var count = 0;
+            var counter = first;
+
+            while (counter != null)
+            {
+                first = counter;
+                if (counter.Number == 0)
+                {
+                    count++;
+                }
+                counter = counter.Top();
+            }
+
+            while (current != null)
+            {
+                var index = current.Index;
+                var prev = current;
+                var thisPosition = current.Image.transform.position;
+
+                if (empty > 0)
+                {
+                    index += (5 * empty);
+                    current.Image.transform.DOMoveY(lastPosition.y, 1f);
+                }
+
+                if (current.Number == 0)
+                {
+                    if (count > -1)
+                    {
+                        index -= (5*count);
+                        count--;
+                    }
+                    empty++;
+
+                    current.Number = GetNumber();
+                    current.Image.transform.DOMoveY(first.Image.transform.position.y, 1f);
+
+                    var color = current.Image.color;
+                    var textColor = current.Text.color;
+                    current.Image.color = new Color(color.r, color.g,
+                        color.b, 1f);
+                    current.Text.color = new Color(textColor.r, textColor.g,
+                        textColor.b, 1f);
+
+                    first = first.Bottom();
+                }
+
+                lastPosition = thisPosition;
+
+                index = Math.Max(0, Math.Min(index, 29));
+                current = current.Top();
+                newArray[index] = prev;
+            }
+
+            bottom = bottom.Left();
         }
-        return instruction;
+
+        var i = 0;
+        foreach (var tile in newArray)
+        {
+            if (tile == null)
+            {
+                
+            }
+            tile.Index = i;
+            i++;
+        }
+
+        _tiles = newArray;
+        yield return null;
     }
 
     public void OnRestartClick()

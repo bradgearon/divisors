@@ -10,9 +10,9 @@ using System.Collections;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class DragDropHandler : MonoBehaviour, 
-    IBeginDragHandler, 
-    IEndDragHandler, 
+public class DragDropHandler : MonoBehaviour,
+    IBeginDragHandler,
+    IEndDragHandler,
     IPointerEnterHandler,
     IPointerExitHandler,
     IDragHandler
@@ -21,8 +21,10 @@ public class DragDropHandler : MonoBehaviour,
     private Vector2 _initialPosition;
 
     public Transform Panel;
+
     private GameObject _selectedObject;
     private Transform _initialParent;
+    private float _angle;
 
     private IEnumerator CheckMatchedTiles(PointerEventData eventData, TileManager tileManager)
     {
@@ -55,7 +57,7 @@ public class DragDropHandler : MonoBehaviour,
         tileManager.ReplaceTile(dragged, droppedOn);
 
         var matches = tileManager.FindMatches(dragged).ToList();
-        matches.AddRange(tileManager.FindMatches(droppedOn));
+        // matches.AddRange(tileManager.FindMatches(droppedOn));
 
         if (matches.Any(m => m != null))
         {
@@ -77,10 +79,10 @@ public class DragDropHandler : MonoBehaviour,
         tileManager.ReplaceTile(droppedOn, dragged);
         droppedOnTransform.DOMove(draggedTransform.position, .5f);
         yield return draggedTransform.DOMove(droppedOnTransform.position, .5f).WaitForCompletion();
-        
+
     }
 
-    private IEnumerator HandleTiles(IEnumerable<Tile> tiles, TileManager tileManager)
+    private IEnumerator HandleTiles(List<Tile> tiles, TileManager tileManager)
     {
         yield return tileManager.RemovessExistingMatches(tiles);
         var ee = tileManager.AddStatusTile(tiles);
@@ -88,7 +90,11 @@ public class DragDropHandler : MonoBehaviour,
         {
             yield return ee.Current;
         }
-        yield return tileManager.FillTiles();
+        ee = tileManager.FillTiles();
+        while (ee.MoveNext())
+        {
+            yield return ee.Current;
+        }
     }
 
 
@@ -100,6 +106,8 @@ public class DragDropHandler : MonoBehaviour,
         }
 
         _initialPosition = eventData.selectedObject.transform.position;
+        _angle = 0f;
+
         _selectedObject = eventData.selectedObject.gameObject;
         _initialParent = _selectedObject.transform.parent;
         _selectedObject.transform.SetParent(Panel);
@@ -153,11 +161,11 @@ public class DragDropHandler : MonoBehaviour,
             return;
         }
 
-        var smoothX = Mathf.Lerp(_selectedObject.transform.position.x, eventData.position.x, Time.deltaTime * 15f);
-        var smoothY = Mathf.Lerp(_selectedObject.transform.position.y, eventData.position.y, Time.deltaTime * 15f);
+        var targetPosition = Vector2.Min(eventData.position, _initialPosition + TileManager.Instance.DragBounds);
+        targetPosition = Vector2.Max(targetPosition, _initialPosition - TileManager.Instance.DragBounds);
 
-        _selectedObject.transform.position = 
-            new Vector3(smoothX, smoothY, _selectedObject.transform.position.z);
+        _selectedObject.transform.position = Vector2.Lerp(_selectedObject.transform.position,
+            targetPosition, Time.deltaTime * 15f);
     }
 
     public void OnEndDrag(PointerEventData eventData)
