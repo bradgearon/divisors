@@ -215,17 +215,19 @@ public class TileManager : MonoBehaviour,
         var topRank = 0;
 
         // move left two
-        left = Move(tile, t => Left(t.Index), 2, out leftRank);
+        left = Move(tile, t => Left(t.Index), 6, out leftRank);
 
         // move up two
-        top = Move(tile, t => Top(t.Index), 2, out topRank);
+        top = Move(tile, t => Top(t.Index), 7, out topRank);
     }
 
     private int GetMatches(Tile current, Func<Tile, Tile> direction, Action<Tile> onMatch,
         int matchCountMax = 1)
     {
-        var factors = current.Number.Factors().ToArray();
         var exclude = new byte[] { 1 };
+        var factors = current.Number.Factors()
+            .Except(exclude)
+            .ToArray();
 
         var matchCount = 1;
         var moved = 0;
@@ -233,22 +235,37 @@ public class TileManager : MonoBehaviour,
 
         do
         {
-            factors = factors
+            var currentFactors = current.Number.Factors()
                 .Except(exclude)
-                .Intersect(current.Number.Factors())
                 .ToArray();
 
-            if (factors.Any())
+            var intersected = factors
+                .Except(exclude)
+                .Intersect(currentFactors)
+                .ToArray();
+
+            if (matchCountMax != 1)
             {
-                matchCount++;
+                factors = intersected;
+            }
+
+            if (intersected.Any())
+            {
+                factors = intersected;
+                matchCount++;            
             }
             else
             {
+                if (matchCountMax == 1)
+                {
+                    factors = currentFactors;
+                }
                 matchCount = 1;
             }
 
             if (matchCount > matchCountMax)
             {
+                animateDebug(current);
                 onMatch(current);
             }
 
@@ -269,9 +286,20 @@ public class TileManager : MonoBehaviour,
                 rank = Math.Min(0, rank--);
                 break;
             }
+            // animateDebug(thisTile);
             tile = thisTile;
         }
         return tile;
+    }
+
+    private void animateDebug(Tile thisTile)
+    {
+        thisTile.Image.transform.DOScale(new Vector3(1.5f, 1.5f, 1f), 1f).OnComplete(() =>
+        {
+            thisTile.Image.transform.DOScale(new Vector3(1f, 1f, 1f), 1f).WaitForCompletion();
+        });
+        
+
     }
 
     public void ReplaceTile(Tile sourceTile, Tile destinationTile)
@@ -304,7 +332,7 @@ public class TileManager : MonoBehaviour,
         Tile tile = null;
         var isLast = (i + 1) % 5 == 0;
         var right = i + 1;
-        if (!isLast && right < _tiles.Length)
+        if (!isLast && right <= _tiles.Length)
         {
             tile = _tiles[right];
         }

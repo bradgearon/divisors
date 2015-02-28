@@ -63,7 +63,7 @@ public class DragDropHandler : MonoBehaviour,
             {
                 if (tiles != null)
                 {
-                    var ee = HandleTiles(tiles.ToArray(), tileManager);
+                    var ee = HandleTiles(tiles, tileManager);
                     while (ee.MoveNext())
                     {
                         yield return ee.Current;
@@ -80,7 +80,7 @@ public class DragDropHandler : MonoBehaviour,
         
     }
 
-    private IEnumerator HandleTiles(Tile[] tiles, TileManager tileManager)
+    private IEnumerator HandleTiles(IEnumerable<Tile> tiles, TileManager tileManager)
     {
         yield return tileManager.RemovessExistingMatches(tiles);
         var ee = tileManager.AddStatusTile(tiles);
