@@ -1,6 +1,10 @@
-﻿using System.Linq;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Security;
 using DG.Tweening;
+using DG.Tweening.Core;
 using UnityEngine;
 using System.Collections;
 using UnityEngine.EventSystems;
@@ -8,38 +12,46 @@ using UnityEngine.UI;
 
 public class DragDropHandler : MonoBehaviour, 
     IBeginDragHandler, 
-    IDropHandler, 
-    IPointerEnterHandler
+    IEndDragHandler, 
+    IPointerEnterHandler,
+    IPointerExitHandler,
+    IDragHandler
 {
     private Text _currentPointer;
+    private Vector2 _initialPosition;
 
-    public void OnDrop(PointerEventData eventData)
+    public Transform Panel;
+    private GameObject _selectedObject;
+    private Transform _initialParent;
+
+    private IEnumerator CheckMatchedTiles(PointerEventData eventData, TileManager tileManager)
     {
-        if (_currentPointer == null)
-        {
-            return;
-        }
-        var tileManager = TileManager.Instance;
-
         Debug.Log("find matching first tile");
         var dragged = tileManager.FindMatchingTile(
-            eventData.selectedObject.gameObject.transform);
+            _selectedObject.gameObject.transform);
         Debug.Log("find matching dropped on to tile");
         var droppedOn = tileManager.FindMatchingTile(
             _currentPointer.transform.parent);
 
-        if (dragged.Left() != droppedOn 
-            && dragged.Right() != droppedOn 
-            && dragged.Top() != droppedOn 
+        if (dragged.Left() != droppedOn
+            && dragged.Right() != droppedOn
+            && dragged.Top() != droppedOn
             && dragged.Bottom() != droppedOn)
         {
-            return;
+            MoveToInitial();
+            yield break;
         }
 
-        var draggedTransform = eventData.selectedObject.gameObject.transform;
+        _selectedObject.transform.SetParent(_initialParent);
+        var draggedTransform = _selectedObject.gameObject.transform;
         var droppedOnTransform = _currentPointer.transform.parent;
 
-        SwitchPositions(draggedTransform, droppedOnTransform);
+        var secondPosition = droppedOnTransform.position;
+
+        draggedTransform.DOMove(secondPosition, .5f);
+
+        yield return droppedOnTransform.DOMove(_initialPosition, .5f).WaitForCompletion();
+
         tileManager.ReplaceTile(dragged, droppedOn);
 
         var matches = tileManager.FindMatches(dragged).ToList();
@@ -47,30 +59,77 @@ public class DragDropHandler : MonoBehaviour,
 
         if (matches.Any(m => m != null))
         {
-            return;
+            foreach (var tiles in matches)
+            {
+                if (tiles != null)
+                {
+                    var ee = HandleTiles(tiles.ToArray(), tileManager);
+                    while (ee.MoveNext())
+                    {
+                        yield return ee.Current;
+                    }
+                }
+            }
+
+            yield break;
         }
 
-        SwitchPositions(droppedOnTransform, draggedTransform);
-        tileManager.ReplaceTile(dragged, droppedOn);
+        tileManager.ReplaceTile(droppedOn, dragged);
+        droppedOnTransform.DOMove(draggedTransform.position, .5f);
+        yield return draggedTransform.DOMove(droppedOnTransform.position, .5f).WaitForCompletion();
         
     }
 
-    private void SwitchPositions(Transform first, Transform second)
+    private IEnumerator HandleTiles(Tile[] tiles, TileManager tileManager)
     {
-        var secondPosition = second.position;
-        var firstPosition = first.position;
-        first.DOMove(secondPosition, .5f);
-        second.DOMove(firstPosition, .5f);
+        yield return tileManager.RemovessExistingMatches(tiles);
+        var ee = tileManager.AddStatusTile(tiles);
+        while (ee.MoveNext())
+        {
+            yield return ee.Current;
+        }
+        yield return tileManager.FillTiles();
     }
+
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        var button = eventData.selectedObject.GetComponentInChildren<Text>();
-        if (button == null) return;
+        if (eventData.selectedObject == null)
+        {
+            return;
+        }
 
-        Debug.Log(button.text);
+        _initialPosition = eventData.selectedObject.transform.position;
+        _selectedObject = eventData.selectedObject.gameObject;
+        _initialParent = _selectedObject.transform.parent;
+        _selectedObject.transform.SetParent(Panel);
 
         eventData.Use();
+    }
+
+    public void OnDrop(PointerEventData eventData)
+    {
+        Debug.Log("drop");
+
+        if (_currentPointer == null)
+        {
+            MoveToInitial();
+            return;
+        }
+        var tileManager = TileManager.Instance;
+
+        StartCoroutine(CheckMatchedTiles(eventData, tileManager));
+    }
+
+    private void MoveToInitial()
+    {
+        _selectedObject.transform.DOMove(_initialPosition, 1f, true)
+            .OnComplete(CompleteMoveToInitial);
+    }
+
+    private void CompleteMoveToInitial()
+    {
+        _selectedObject.transform.SetParent(_initialParent);
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -79,5 +138,30 @@ public class DragDropHandler : MonoBehaviour,
             .gameObject.GetComponent<Text>();
 
         eventData.Use();
+    }
+
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        _currentPointer = null;
+    }
+
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (_selectedObject == null)
+        {
+            return;
+        }
+
+        var smoothX = Mathf.Lerp(_selectedObject.transform.position.x, eventData.position.x, Time.deltaTime * 15f);
+        var smoothY = Mathf.Lerp(_selectedObject.transform.position.y, eventData.position.y, Time.deltaTime * 15f);
+
+        _selectedObject.transform.position = 
+            new Vector3(smoothX, smoothY, _selectedObject.transform.position.z);
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        OnDrop(eventData);
     }
 }

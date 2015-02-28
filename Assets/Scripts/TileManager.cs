@@ -18,6 +18,8 @@ public class TileManager : MonoBehaviour,
         set { _instance = value; }
     }
 
+    public GameObject TilePrefab;
+
     public Transform TileContainer;
     public ColorSetting[] ColorSettings = new ColorSetting[10];
 
@@ -28,21 +30,45 @@ public class TileManager : MonoBehaviour,
 
     private Tile[] _tiles = new Tile[30];
     private byte[] _possible;
+    private GameObject _tilePrefabInstance;
+
+    private IList<Image> _imageElements;
+    private IList<Text> _textElements;
+    public Transform Panel;
 
     void Start()
     {
+        _tilePrefabInstance = (GameObject) Instantiate(TilePrefab);
+
         _instance = this;
         if (TileContainer == null) return;
 
-        var imageElements = TileContainer.GetComponentsInChildren<Image>();
-        var textElements = TileContainer.GetComponentsInChildren<Text>();
+        _imageElements = TileContainer.GetComponentsInChildren<Image>();
+        _textElements = TileContainer.GetComponentsInChildren<Text>();
 
-        InitTiles(imageElements, textElements);
+        RestartLevel();
+    }
+
+    private void RestartLevel()
+    {
+        InitTiles(_imageElements, _textElements);
 
         var range = Enumerable.Range(Min, Max + 1);
         _possible = BuildFactors(range).ToArray();
 
-        StartCoroutine(RandomizeTiles());
+        RandomizeTiles();
+        MakeShitHarder();
+    }
+
+    private void MakeShitHarder()
+    {
+        for (var iw = 0; iw < 5; iw++)
+        {
+            foreach (var tile in _tiles)
+            {
+                RemoveMatches(tile);
+            }
+        }
     }
 
     /// <summary>
@@ -117,29 +143,17 @@ public class TileManager : MonoBehaviour,
     /// generates the numbers!
     /// </summary>
     /// <returns>ur mom</returns>
-    IEnumerator RandomizeTiles()
+    public void RandomizeTiles()
     {
-        for (var i = 0; i < _tiles.Length; i++)
+        foreach (var tile in _tiles.Where(t => t.Number == 0))
         {
-            var tile = _tiles[i];
-
             var color = Random.Range(0, ColorSettings.Length);
-            var number = GetNumber();
-
             tile.Image.color = ColorSettings[color].BackColor;
             tile.Text.color = ColorSettings[color].TextColor;
+
+            var number = GetNumber();
             tile.Number = number;
         }
-
-        for (var iw = 0; iw < 5; iw++)
-        {
-            foreach (var tile in _tiles)
-            {
-                RemoveMatches(tile);
-            }
-        }
-
-        yield return 0;
     }
 
     /// <summary>
@@ -168,7 +182,7 @@ public class TileManager : MonoBehaviour,
             var facts = f.Factors()
                 .Except(exclude);
 
-            if (f < 6 || facts.Count() > 2)
+            if (f < 6 || facts.Count() > 1)
             {
                 factors.Add(f);
             }
@@ -266,10 +280,10 @@ public class TileManager : MonoBehaviour,
         var destinationIndex = destinationTile.Index;
 
         sourceTile.Index = destinationIndex;
-        destinationTile.Index = sourceIndex;
+        _tiles.SetValue(sourceTile, destinationIndex);
 
-        _tiles[sourceIndex] = destinationTile;
-        _tiles[destinationIndex] = sourceTile;
+        destinationTile.Index = sourceIndex;
+        _tiles.SetValue(destinationTile, sourceIndex);
     }
 
     public Tile Left(int i)
@@ -317,6 +331,83 @@ public class TileManager : MonoBehaviour,
             tile = _tiles[bottom];
         }
         return tile;
+    }
+
+    public IEnumerator AddStatusTile(IEnumerable<Tile> matches)
+    {
+        var first = matches.FirstOrDefault();
+        var last = matches.LastOrDefault();
+        var firstRect = first.Image.transform;
+        var lastRect = last.Image.transform;
+
+        var centerPosition = new Vector3(lastRect.position.x, lastRect.position.y, 100);
+        // vertical matches
+        if (Mathf.Approximately(firstRect.position.x, lastRect.position.x))
+        {
+            centerPosition.y = firstRect.position.y + (.5f*(lastRect.position.y - firstRect.position.y));
+        }
+        // horizontal matches
+        else
+        {
+            centerPosition.x = firstRect.position.x + (.5f * (lastRect.position.x - firstRect.position.x));
+        }
+        
+        var child = _tilePrefabInstance;
+        child.transform.SetParent(Panel);
+        child.transform.localScale = Vector3.one;
+        child.transform.position = centerPosition;
+
+        var image = child.GetComponent<Image>();
+        var text = child.GetComponentInChildren<Text>();
+
+        var factors = Enumerable.Empty<byte>();
+        factors = matches.ToArray().Aggregate(factors, (current, match) => 
+            current.Union(match.Number.Factors()))
+            .OrderBy(factor => factor);
+
+        text.text = factors.FirstOrDefault(f => f > 1) + string.Empty;
+        image.color = Color.white;
+        text.color = Color.black;
+
+        image.transform.DOLocalMove(new Vector3(0, 10f), .25f);
+        yield return image.transform.DOScale(new Vector3(2f, 2f, 1f), .75f).WaitForCompletion();
+        
+        text.DOFade(0f, .5f);
+        image.DOFade(0f, .5f);
+    }
+
+    public YieldInstruction RemovessExistingMatches(IEnumerable<Tile> matches)
+    {
+        YieldInstruction instruction = null;
+
+        foreach (var tile in matches)
+        {
+            tile.Image.DOFade(0f, 1f);
+            instruction = tile.Text.DOFade(0f, 1f).WaitForCompletion();
+            tile.Number = 0;
+        }
+        
+        return instruction;
+    }
+
+
+    public YieldInstruction FillTiles()
+    {
+        YieldInstruction instruction = null;
+        var emptyTiles = _tiles.Where(t => t.Number == 0).ToArray();
+        RandomizeTiles();
+
+        foreach (var tile in emptyTiles)
+        {
+            tile.Image.DOFade(1f, 1f);
+            instruction = tile.Text.DOFade(1f, 1f).WaitForCompletion();
+        }
+        return instruction;
+    }
+
+    public void OnRestartClick()
+    {
+        RestartLevel();
     }
 }
 
