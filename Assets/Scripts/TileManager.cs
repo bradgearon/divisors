@@ -12,6 +12,8 @@ using Random = UnityEngine.Random;
 public class TileManager : MonoBehaviour,
     ITileNavigator
 {
+
+
     public static TileManager Instance
     {
         get { return _instance; }
@@ -32,6 +34,7 @@ public class TileManager : MonoBehaviour,
     private Tile[] _tiles = new Tile[30];
     private byte[] _possible;
     private GameObject _tilePrefabInstance;
+    private const float Height = 100f;
 
     private IList<Image> _imageElements;
     private IList<Text> _textElements;
@@ -317,14 +320,17 @@ public class TileManager : MonoBehaviour,
 
     public void ReplaceTile(Tile sourceTile, Tile destinationTile)
     {
-        var sourceIndex = sourceTile.Index;
-        var destinationIndex = destinationTile.Index;
+        lock (_locker)
+        {
+            var sourceIndex = sourceTile.Index;
+            var destinationIndex = destinationTile.Index;
 
-        sourceTile.Index = destinationIndex;
-        _tiles.SetValue(sourceTile, destinationIndex);
+            sourceTile.Index = destinationIndex;
+            _tiles.SetValue(sourceTile, destinationIndex);
 
-        destinationTile.Index = sourceIndex;
-        _tiles.SetValue(destinationTile, sourceIndex);
+            destinationTile.Index = sourceIndex;
+            _tiles.SetValue(destinationTile, sourceIndex);
+        }
     }
 
     public Tile Left(int i)
@@ -431,89 +437,90 @@ public class TileManager : MonoBehaviour,
         return instruction;
     }
 
+    private readonly object _locker = new object();
 
-    public IEnumerator FillTiles()
+    public void FillTiles()
     {
-        var last = _tiles.Last();
-        var bottom = last;
-        var newArray = new Tile[30];
-
-        while (bottom != null)
+        lock (_locker)
         {
-            var empty = 0;
-            var current = bottom;
-            var lastPosition = bottom.Image.transform.position;
-            var first = _tiles[bottom.Index - 25];
-            var count = 0;
-            var counter = first;
+            var last = _tiles.Last();
+            var bottom = last;
+            var newArray = new Tile[30];
 
-            while (counter != null)
+            // for each column (at the bottom)
+            while (bottom != null)
             {
-                first = counter;
-                if (counter.Number == 0)
-                {
-                    count++;
-                }
-                counter = counter.Top();
-            }
+                var current = bottom;
+                var first = _tiles[bottom.Index - 25];
+                var posY = new float[6];
 
-            while (current != null)
-            {
-                var index = current.Index;
-                var prev = current;
-                var thisPosition = current.Image.transform.position;
+                var empty = 0;
 
-                if (empty > 0)
+                var counter = first;
+                var ii = 0;
+                // count empty tiles
+                while (counter != null)
                 {
-                    index += (5 * empty);
-                    current.Image.transform.DOMoveY(lastPosition.y, 1f);
+                    posY[ii++] = counter.Image.transform.position.y;
+                    counter = counter.Bottom();
                 }
 
-                if (current.Number == 0)
+                var spot = 5;
+                // for each row
+                while (current != null)
                 {
-                    if (count > -1)
+                    var index = current.Index;
+                    index += (5*empty);
+
+                    // if this one is empty
+                    if (current.Number == 0)
                     {
-                        index -= (5*count);
-                        count--;
+                        index = first.Index;
+                        var pos = posY[empty++];
+                        MoveOffAndOnToBoard(current, posY[0], empty, pos);
+
+                        first = first.Bottom();
                     }
-                    empty++;
+                    else if (empty > 0)
+                    {
+                        var pos = posY[empty + spot];
+                        current.Image.transform.DOMoveY(pos, 1f);
+                    }
 
-                    current.Number = GetNumber();
-                    current.Image.transform.DOMoveY(first.Image.transform.position.y, 1f);
 
-                    var color = current.Image.color;
-                    var textColor = current.Text.color;
-                    current.Image.color = new Color(color.r, color.g,
-                        color.b, 1f);
-                    current.Text.color = new Color(textColor.r, textColor.g,
-                        textColor.b, 1f);
+                    index = Math.Max(0, Math.Min(index, 29));
+                    Debug.Log("tile: " + current.Index + " now: " + index);
 
-                    first = first.Bottom();
+                    newArray[index] = current;
+                    current = current.Top();
+                    spot--;
                 }
 
-                lastPosition = thisPosition;
-
-                index = Math.Max(0, Math.Min(index, 29));
-                current = current.Top();
-                newArray[index] = prev;
+                bottom = bottom.Left();
             }
 
-            bottom = bottom.Left();
-        }
-
-        var i = 0;
-        foreach (var tile in newArray)
-        {
-            if (tile == null)
+            for(var i = 0; i < newArray.Length; i++)
             {
-                
+                newArray[i].Index = i;
+                _tiles[i] = newArray[i];
             }
-            tile.Index = i;
-            i++;
         }
+    }
 
-        _tiles = newArray;
-        yield return null;
+    private void MoveOffAndOnToBoard(Tile current, float posFirstY, int emptySpots, float posY)
+    {
+        var color = current.Image.color;
+        var textColor = current.Text.color;
+        var offBoardY = posFirstY + (emptySpots * Height);
+        var image = current.Image;
+        var text = current.Text;
+
+        current.Image.transform.position = new Vector3(
+            image.transform.position.x, offBoardY, image.transform.position.z);
+        current.Number = GetNumber();
+        image.color = new Color(color.r, color.g, color.b, 1f);
+        text.color = new Color(textColor.r, textColor.g, textColor.b, 1f);
+        current.Image.transform.DOMoveY(posY, 1f);
     }
 
     public void OnRestartClick()

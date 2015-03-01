@@ -57,7 +57,7 @@ public class DragDropHandler : MonoBehaviour,
         tileManager.ReplaceTile(dragged, droppedOn);
 
         var matches = tileManager.FindMatches(dragged).ToList();
-        // matches.AddRange(tileManager.FindMatches(droppedOn));
+        matches.AddRange(tileManager.FindMatches(droppedOn).Except(matches));
 
         if (matches.Any(m => m != null))
         {
@@ -73,6 +73,7 @@ public class DragDropHandler : MonoBehaviour,
                 }
             }
 
+            tileManager.FillTiles();
             yield break;
         }
 
@@ -86,11 +87,6 @@ public class DragDropHandler : MonoBehaviour,
     {
         yield return tileManager.RemovessExistingMatches(tiles);
         var ee = tileManager.AddStatusTile(tiles);
-        while (ee.MoveNext())
-        {
-            yield return ee.Current;
-        }
-        ee = tileManager.FillTiles();
         while (ee.MoveNext())
         {
             yield return ee.Current;
