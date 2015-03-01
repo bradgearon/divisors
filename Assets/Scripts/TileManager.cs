@@ -98,7 +98,7 @@ public class TileManager : MonoBehaviour,
         Tile top;
 
         Debug.Log("enter move to top left");
-        MoveToTopLeft(current, out left, out top, 2, 2);
+        MoveToTopLeft(current, out left, out top, 5, 6);
         Debug.Log("exit move to top left");
 
         var matches = new List<Tile>();
@@ -127,7 +127,7 @@ public class TileManager : MonoBehaviour,
         Debug.Log("getMatches left -> right; add");
         var leftMatchCount = GetMatches(left, t => t.Right(), matches.Add);
         // matches = fixSequence(matches, t => t.Left()).ToList();
-        if (matches.Count > 2)
+        if (leftMatchCount > 2)
         {
             Debug.Log("match count > 2 left -> right");
             yield return matches;
@@ -137,7 +137,7 @@ public class TileManager : MonoBehaviour,
         Debug.Log("getMatches top -> bottom; add");
         var topMatchCount = GetMatches(top, t => t.Bottom(), matches.Add);
         // matches = fixSequence(matches, t => t.Top()).ToList();
-        if (matches.Count > 2)
+        if (topMatchCount > 2)
         {
             Debug.Log("match count > 2 top -> bottom");
             yield return matches;
