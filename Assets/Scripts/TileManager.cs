@@ -98,7 +98,7 @@ public class TileManager : MonoBehaviour,
         Tile top;
 
         Debug.Log("enter move to top left");
-        MoveToTopLeft(current, out left, out top);
+        MoveToTopLeft(current, out left, out top, 2, 2);
         Debug.Log("exit move to top left");
 
         var matches = new List<Tile>();
@@ -126,7 +126,7 @@ public class TileManager : MonoBehaviour,
 
         Debug.Log("getMatches left -> right; add");
         var leftMatchCount = GetMatches(left, t => t.Right(), matches.Add);
-        matches = fixSequence(matches, t => t.Left()).ToList();
+        // matches = fixSequence(matches, t => t.Left()).ToList();
         if (matches.Count > 2)
         {
             Debug.Log("match count > 2 left -> right");
@@ -136,15 +136,14 @@ public class TileManager : MonoBehaviour,
         matches = new List<Tile>();
         Debug.Log("getMatches top -> bottom; add");
         var topMatchCount = GetMatches(top, t => t.Bottom(), matches.Add);
-        matches = fixSequence(matches, t => t.Top()).ToList();
+        // matches = fixSequence(matches, t => t.Top()).ToList();
         if (matches.Count > 2)
         {
             Debug.Log("match count > 2 top -> bottom");
             yield return matches;
         }
 
-        Debug.Log("yield return empty");
-        yield return null;
+        yield break;
     }
 
     /// <summary>
@@ -237,16 +236,16 @@ public class TileManager : MonoBehaviour,
         while (leftMatchCount > 1 || topMatchCount > 1);
     }
 
-    private void MoveToTopLeft(Tile tile, out Tile left, out Tile top)
+    private void MoveToTopLeft(Tile tile, out Tile left, out Tile top, int maxX = 6, int maxY = 7)
     {
         var leftRank = 0;
         var topRank = 0;
 
         // move left two
-        left = Move(tile, t => Left(t.Index), 6, out leftRank);
+        left = Move(tile, t => Left(t.Index), maxX, out leftRank);
 
         // move up two
-        top = Move(tile, t => Top(t.Index), 7, out topRank);
+        top = Move(tile, t => Top(t.Index), maxY, out topRank);
     }
 
     private int GetMatches(Tile current, Func<Tile, Tile> direction, Action<Tile> onMatch,
@@ -267,27 +266,17 @@ public class TileManager : MonoBehaviour,
                 .Except(exclude)
                 .ToArray();
 
-            var intersected = factors
+            factors = factors
                 .Except(exclude)
                 .Intersect(currentFactors)
                 .ToArray();
 
-            if (matchCountMax != 1)
+            if (factors.Any())
             {
-                factors = intersected;
-            }
-
-            if (intersected.Any())
-            {
-                factors = intersected;
                 matchCount++;
             }
             else
             {
-                if (matchCountMax == 1)
-                {
-                    factors = currentFactors;
-                }
                 matchCount = 1;
             }
 
