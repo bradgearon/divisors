@@ -34,7 +34,7 @@ public class TileManager : MonoBehaviour,
     private Tile[] _tiles = new Tile[30];
     private byte[] _possible;
     private GameObject _tilePrefabInstance;
-    private const float Height = 100f;
+    public Transform TopTransform;
 
     private IList<Image> _imageElements;
     private IList<Text> _textElements;
@@ -70,7 +70,11 @@ public class TileManager : MonoBehaviour,
         {
             foreach (var tile in _tiles)
             {
-                RemoveMatches(tile);
+                var matches = RemoveMatches(tile).ToArray();
+                if (matches.Length > 0)
+                {
+                    tile.Number = GetNumber();   
+                }
             }
         }
     }
@@ -91,59 +95,16 @@ public class TileManager : MonoBehaviour,
     /// </summary>
     /// <param name="current">starting point</param>
     /// <returns>a list of lists... of tiles</returns>
-    public IEnumerable<List<Tile>> FindMatches(Tile current)
+    public IEnumerable<IEnumerable<Tile>> FindMatches(Tile current)
     {
-        Debug.Log("enter find matches");
         Tile left;
         Tile top;
 
-        Debug.Log("enter move to top left");
-        MoveToTopLeft(current, out left, out top, 5, 6);
-        Debug.Log("exit move to top left");
+        Debug.Log("enter find matches");
+        MoveToTopLeft(current, out left, out top);
 
-        var matches = new List<Tile>();
-
-        Func<List<Tile>, Func<Tile, Tile>, List<Tile>> fixSequence = (m, direction) =>
-        {
-            for (var i = 0; i < m.Count - 1; i++)
-            {
-                if (m[i] == null)
-                {
-                    continue;
-                }
-
-                var next = i + 1;
-                if (m[i] != direction(m[next]))
-                {
-                    m[i] = null;
-                }
-            }
-
-            return m.Where(mm => mm != null).ToList();
-        };
-
-
-
-        Debug.Log("getMatches left -> right; add");
-        var leftMatchCount = GetMatches(left, t => t.Right(), matches.Add);
-        // matches = fixSequence(matches, t => t.Left()).ToList();
-        if (leftMatchCount > 2)
-        {
-            Debug.Log("match count > 2 left -> right");
-            yield return matches;
-        }
-
-        matches = new List<Tile>();
-        Debug.Log("getMatches top -> bottom; add");
-        var topMatchCount = GetMatches(top, t => t.Bottom(), matches.Add);
-        // matches = fixSequence(matches, t => t.Top()).ToList();
-        if (topMatchCount > 2)
-        {
-            Debug.Log("match count > 2 top -> bottom");
-            yield return matches;
-        }
-
-        yield break;
+        return GetMatches(left, t => t.Right()).ToArray()
+            .Union(GetMatches(top, t => t.Bottom()).ToArray());
     }
 
     /// <summary>
@@ -201,7 +162,7 @@ public class TileManager : MonoBehaviour,
     /// <returns></returns>
     private IEnumerable<byte> BuildFactors(IEnumerable<int> range)
     {
-        var factors = new List<byte>();
+        var factors = new System.Collections.Generic.List<byte>();
         var exclude = new byte[] { 1 };
 
         foreach (byte f in range)
@@ -218,47 +179,36 @@ public class TileManager : MonoBehaviour,
         return factors.Distinct();
     }
 
-    private void RemoveMatches(Tile current)
+    private IEnumerable<IEnumerable<Tile>> RemoveMatches(Tile current)
     {
-        var leftMost = current;
-        var topMost = current;
+        Tile leftMost;
+        Tile topMost;
 
         MoveToTopLeft(current, out leftMost, out topMost);
 
-        // for each that dont match
-        var leftMatchCount = 0;
-        var topMatchCount = 0;
-        do
-        {
-            leftMatchCount = GetMatches(leftMost, t => t.Right(), t => t.Number = GetNumber(), 2);
-            topMatchCount = GetMatches(topMost, t => t.Bottom(), t => t.Number = GetNumber(), 2);
-        }
-        while (leftMatchCount > 1 || topMatchCount > 1);
+        return GetMatches(leftMost, t => t.Right(), 1)
+            .Union(GetMatches(topMost, t => t.Bottom(), 1))
+            .ToArray();
     }
 
-    private void MoveToTopLeft(Tile tile, out Tile left, out Tile top, int maxX = 6, int maxY = 7)
+    private void MoveToTopLeft(Tile tile, out Tile left, out Tile top, int maxX = 5, int maxY = 6)
     {
         var leftRank = 0;
         var topRank = 0;
 
-        // move left two
-        left = Move(tile, t => Left(t.Index), maxX, out leftRank);
-
-        // move up two
-        top = Move(tile, t => Top(t.Index), maxY, out topRank);
+        left = Move(tile, t => t.Left(), maxX, out leftRank);
+        top = Move(tile, t => t.Top(), maxY, out topRank);
     }
 
-    private int GetMatches(Tile current, Func<Tile, Tile> direction, Action<Tile> onMatch,
-        int matchCountMax = 1)
+    private IEnumerable<IEnumerable<Tile>> GetMatches(
+        Tile current, Func<Tile, Tile> direction, int matchCountMax = 2)
     {
         var exclude = new byte[] { 1 };
-        var factors = current.Number.Factors()
-            .Except(exclude)
-            .ToArray();
+        var factors = new byte[0];
+        var matches = new List<Tile>() { current };
 
         var matchCount = 1;
         var moved = 0;
-        bool resetFactors = false;
 
         do
         {
@@ -273,23 +223,31 @@ public class TileManager : MonoBehaviour,
 
             if (factors.Any())
             {
+                // add to the buffer
+                matches.Add(current);
                 matchCount++;
             }
             else
             {
+                if (matchCount > matchCountMax)
+                {
+                    // if you have a buffer yield it
+                    yield return matches;
+                }
+                // reset
+                matches = new List<Tile>() { current };
+                factors = currentFactors;
                 matchCount = 1;
-            }
-
-            if (matchCount > matchCountMax)
-            {
-                onMatch(current);
             }
 
             current = Move(current, direction, 1, out moved);
         }
         while (moved != 0);
 
-        return matchCount;
+        if (matchCount > matchCountMax)
+        {
+            yield return matches;
+        }
     }
 
     private Tile Move(Tile tile, Func<Tile, Tile> func, int distance, out int rank)
@@ -369,10 +327,11 @@ public class TileManager : MonoBehaviour,
         return tile;
     }
 
-    public IEnumerator AddStatusTile(IEnumerable<Tile> matches)
+    public YieldInstruction AddStatusTile(IEnumerable<Tile> matches)
     {
-        var first = matches.FirstOrDefault();
-        var last = matches.LastOrDefault();
+        var enumerable = matches as Tile[] ?? matches.ToArray();
+        var first = enumerable.FirstOrDefault();
+        var last = enumerable.LastOrDefault();
         var firstRect = first.Image.transform;
         var lastRect = last.Image.transform;
 
@@ -397,19 +356,25 @@ public class TileManager : MonoBehaviour,
         var text = child.GetComponentInChildren<Text>();
 
         var factors = Enumerable.Empty<byte>();
-        factors = matches.ToArray().Aggregate(factors, (current, match) =>
-            current.Union(match.Number.Factors()))
+
+        factors = enumerable.Aggregate(factors, (current, match) => 
+                current.Union(match.Number.Factors()))
             .OrderBy(factor => factor);
 
         text.text = factors.FirstOrDefault(f => f > 1) + string.Empty;
         image.color = Color.white;
         text.color = Color.black;
 
-        image.transform.DOLocalMove(new Vector3(0, 10f), .25f);
-        yield return image.transform.DOScale(new Vector3(2f, 2f, 1f), .75f).WaitForCompletion();
+        image.transform.DOLocalMove(new Vector3(0, 10f), .5f);
 
-        text.DOFade(0f, .5f);
-        image.DOFade(0f, .5f);
+
+        return image.transform.DOScale(new Vector3(2f, 2f, 1f), .75f)
+            .OnComplete(() =>
+            {
+                text.DOFade(0f, .5f);
+                image.DOFade(0f, .5f);
+            })
+            .WaitForCompletion();
     }
 
     public YieldInstruction RemovessExistingMatches(IEnumerable<Tile> matches)
@@ -418,8 +383,9 @@ public class TileManager : MonoBehaviour,
 
         foreach (var tile in matches)
         {
-            tile.Image.DOFade(0f, 1f);
-            instruction = tile.Text.DOFade(0f, 1f).WaitForCompletion();
+            tile.Image.DOFade(0f, .75f);
+            instruction = tile.Text.DOFade(0f, .75f)
+                .WaitForCompletion();
             tile.Number = 0;
         }
 
@@ -428,10 +394,11 @@ public class TileManager : MonoBehaviour,
 
     private readonly object _locker = new object();
 
-    public void FillTiles()
+    public Tweener FillTiles()
     {
         lock (_locker)
         {
+            Tweener instruction = null;
             var last = _tiles.Last();
             var bottom = last;
             var newArray = new Tile[30];
@@ -459,21 +426,21 @@ public class TileManager : MonoBehaviour,
                 while (current != null)
                 {
                     var index = current.Index;
-                    index += (5*empty);
+                    index += (5 * empty);
 
                     // if this one is empty
                     if (current.Number == 0)
                     {
                         index = first.Index;
                         var pos = posY[empty++];
-                        MoveOffAndOnToBoard(current, posY[0], empty, pos);
+                        instruction = MoveOffAndOnToBoard(current, posY[0], empty, pos);
 
                         first = first.Bottom();
                     }
                     else if (empty > 0)
                     {
                         var pos = posY[empty + spot];
-                        current.Image.transform.DOMoveY(pos, 1f);
+                        instruction = current.Image.transform.DOMoveY(pos, 1f);
                     }
 
 
@@ -488,19 +455,22 @@ public class TileManager : MonoBehaviour,
                 bottom = bottom.Left();
             }
 
-            for(var i = 0; i < newArray.Length; i++)
+            for (var i = 0; i < newArray.Length; i++)
             {
                 newArray[i].Index = i;
                 _tiles[i] = newArray[i];
             }
+
+            return instruction;
         }
     }
 
-    private void MoveOffAndOnToBoard(Tile current, float posFirstY, int emptySpots, float posY)
+    private Tweener MoveOffAndOnToBoard(Tile current, float posFirstY, int emptySpots, float posY, 
+        Action after = null)
     {
         var color = current.Image.color;
         var textColor = current.Text.color;
-        var offBoardY = posFirstY + (emptySpots * Height);
+        var offBoardY = TopTransform.position.y;
         var image = current.Image;
         var text = current.Text;
 
@@ -509,7 +479,8 @@ public class TileManager : MonoBehaviour,
         current.Number = GetNumber();
         image.color = new Color(color.r, color.g, color.b, 1f);
         text.color = new Color(textColor.r, textColor.g, textColor.b, 1f);
-        current.Image.transform.DOMoveY(posY, 1f);
+        
+        return current.Image.transform.DOMoveY(posY, 1f);
     }
 
     public void OnRestartClick()

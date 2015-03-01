@@ -42,3 +42,6 @@ Thumbs.db
 /Library/ShaderCache.db
 
 /Library/*.log
+UnityEditor.xml
+UnityEngine.UI.xml
+UnityEngine.xml
