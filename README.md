@@ -10,5 +10,7 @@ Match three numbers that share divisors. Higher least common divisor awards high
 * tests and ioc woulda saved so much time // looks at unity
 * 
 
+if you make a math game with ads, I will personally kick you in the face.
+
 
 
