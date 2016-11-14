@@ -22,4 +22,6 @@ public class Tile
             Text.text = _number + string.Empty;
         }
     }
+
+    public int Color { get; set; }
 }

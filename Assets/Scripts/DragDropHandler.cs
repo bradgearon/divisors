@@ -33,12 +33,19 @@ public class DragDropHandler : MonoBehaviour,
     private float _scaledRadius;
     private Vector2 _delta;
     private bool _inputEnabled = true;
+    private Transform _scaler;
+    public float threshold = 10;
+    private float _scaledThreshold;
 
     void Start()
     {
-        _dpiScale = Screen.dpi / 72f;
-        _scaledRayDistance = _dpiScale * RayDistance;
-        _scaledRadius = _dpiScale * radius;
+        _scaler = GetComponentInParent<CanvasScaler>().transform;
+
+        _scaledRayDistance = _scaler.localScale.x * RayDistance;
+        _scaledRadius = _scaler.localScale.x * radius;
+        _scaledThreshold = _scaler.localScale.x * threshold;
+
+        Debug.Log("scaled: " + _scaledRayDistance + " ray distance: " + RayDistance);
     }
 
     private void DisableInput()
@@ -52,7 +59,7 @@ public class DragDropHandler : MonoBehaviour,
         _selectedObject = null;
     }
 
-    private IEnumerator CheckMatchedTiles(PointerEventData eventData, TileManager tileManager)
+    private IEnumerator CheckMatchedTiles(TileManager tileManager)
     {
         _currentPointer.transform.DOScale(Vector3.one, .25f);
 
@@ -197,7 +204,7 @@ public class DragDropHandler : MonoBehaviour,
 
         var tileManager = TileManager.Instance;
 
-        StartCoroutine(CheckMatchedTiles(eventData, tileManager));
+        StartCoroutine(CheckMatchedTiles(tileManager));
     }
 
     private void MoveToInitial()
@@ -210,7 +217,9 @@ public class DragDropHandler : MonoBehaviour,
 
     private void CompleteMoveToInitial()
     {
+        Debug.Log("complete move to initial");
         _selectedObject.transform.SetParent(_initialParent);
+        EnableInput();
     }
 
     public void OnDrag(PointerEventData eventData)
@@ -224,13 +233,22 @@ public class DragDropHandler : MonoBehaviour,
         _delta += eventData.delta;
 
         var targetPosition = _initialPosition + Vector2.ClampMagnitude(_delta, _scaledRadius);
-        
-        _selectedObject.transform.position = Vector2.Lerp(
-            _selectedObject.transform.position, targetPosition, Time.deltaTime * 25f);
 
-        var direction = eventData.position - _initialPosition;
-        var raycast = Physics2D.Raycast(_initialPosition, 
-            direction, _scaledRayDistance, RayLayerMask);
+        _selectedObject.transform.position = targetPosition;
+        var distanceMoved = Vector2.Distance(targetPosition, _initialPosition);
+        if (distanceMoved < _scaledThreshold)
+        {
+            if (_currentPointer != null)
+            {
+                _currentPointer.transform.DOScale(Vector3.one, .25f);
+                _currentPointer = null;
+            }
+            return;
+        }
+
+        var direction = targetPosition - _initialPosition;
+        var raycast = Physics2D.Raycast(_initialPosition, direction, 
+            _scaledRayDistance, RayLayerMask);
 
         if (raycast.collider == null)
         {
@@ -238,12 +256,7 @@ public class DragDropHandler : MonoBehaviour,
         }
 
         var raypointer = raycast.collider.gameObject;
-        if (raypointer == null)
-        {
-            return;
-        }
-
-        if (raypointer == _currentPointer)
+        if (raypointer == null || raypointer == _currentPointer)
         {
             return;
         }
@@ -252,6 +265,7 @@ public class DragDropHandler : MonoBehaviour,
         {
             _currentPointer.transform.DOScale(Vector3.one, .25f);
         }
+
         _currentPointer = raypointer;
         _currentPointer.transform.DOScale(SelectedScale, .25f);
     }

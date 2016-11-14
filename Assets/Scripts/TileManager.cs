@@ -21,18 +21,22 @@ public class TileManager : MonoBehaviour,
     public ScoreManager ScoreManager;
     public Vector2 DragBounds;
     public GameObject TilePrefab;
+    public GameObject TileEffectPrefab;
 
     public Transform TileContainer;
     public ColorSetting[] ColorSettings = new ColorSetting[10];
 
     public int Min = 2;
     public int Max = 99;
+    public byte level = 1;
 
+    private readonly object _locker = new object();
     private static TileManager _instance;
 
     private Tile[] _tiles = new Tile[30];
     private byte[] _possible;
     private GameObject _tilePrefabInstance;
+    
     public Transform TopTransform;
 
     private IList<Image> _imageElements;
@@ -41,7 +45,7 @@ public class TileManager : MonoBehaviour,
 
     void Start()
     {
-        _tilePrefabInstance = (GameObject)Instantiate(TilePrefab);
+        _tilePrefabInstance = Instantiate(TilePrefab);
 
         _instance = this;
         if (TileContainer == null) return;
@@ -56,7 +60,7 @@ public class TileManager : MonoBehaviour,
     {
         InitTiles(_imageElements, _textElements);
 
-        var range = Enumerable.Range(Min, Max + 1);
+        var range = Enumerable.Range(Min * level, (Max * level)+ 1);
         _possible = BuildFactors(range).ToArray();
 
         RandomizeTiles();
@@ -135,12 +139,18 @@ public class TileManager : MonoBehaviour,
         foreach (var tile in _tiles.Where(t => t.Number == 0))
         {
             var color = Random.Range(0, ColorSettings.Length);
-            tile.Image.color = ColorSettings[color].BackColor;
-            tile.Text.color = ColorSettings[color].TextColor;
+            SetTileColor(tile, color);
 
             var number = GetNumber();
             tile.Number = number;
         }
+    }
+
+    private void SetTileColor(Tile tile, int color)
+    {
+        tile.Color = color;
+        tile.Image.color = ColorSettings[color].BackColor;
+        tile.Text.color = ColorSettings[color].TextColor;
     }
 
     /// <summary>
@@ -378,12 +388,19 @@ public class TileManager : MonoBehaviour,
             .FirstOrDefault(f => f > 1);
 
         text.text = scoreValue + string.Empty;
+        SetTileColor(new Tile { Image = image, Text = text }, first.Color);
 
-        image.color = Color.white;
-        text.color = Color.black;
-
+        GameObject effect = null;
         image.transform
-            .DOLocalMove(new Vector3(0, 10f), .5f);
+            .DOLocalMove(new Vector3(0, 10f), .5f)
+            .OnComplete(() =>
+            {
+                effect = (GameObject)Instantiate(TileEffectPrefab, Panel);
+                effect.transform.localScale = Vector3.one;
+                effect.transform.localPosition = new Vector3(0, 0, 100);
+                effect.GetComponent<ParticleSystem>().DOPlay();
+            })
+            .WaitForCompletion();
 
         var instruction = image.transform
             .DOScale(new Vector3(2f, 2f, 1f), .75f)
@@ -411,8 +428,6 @@ public class TileManager : MonoBehaviour,
 
         return instruction;
     }
-
-    private readonly object _locker = new object();
 
     public Tweener FillTiles()
     {
@@ -485,7 +500,8 @@ public class TileManager : MonoBehaviour,
         }
     }
 
-    private Tweener MoveOffAndOnToBoard(Tile current, float posFirstY, int emptySpots, float posY, 
+    private Tweener MoveOffAndOnToBoard(Tile current, 
+        float posFirstY, int emptySpots, float posY, 
         Action after = null)
     {
         var color = current.Image.color;
