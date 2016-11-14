@@ -36,7 +36,7 @@ public class DragDropHandler : MonoBehaviour,
 
     void Start()
     {
-        _dpiScale = Screen.dpi / 96f;
+        _dpiScale = Screen.dpi / 72f;
         _scaledRayDistance = _dpiScale * RayDistance;
         _scaledRadius = _dpiScale * radius;
     }
@@ -70,6 +70,7 @@ public class DragDropHandler : MonoBehaviour,
 
         draggedTransform
             .DOMove(secondPosition, .5f);
+        
         yield return droppedOnTransform
             .DOMove(_initialPosition, .5f)
             .WaitForCompletion();
@@ -97,6 +98,9 @@ public class DragDropHandler : MonoBehaviour,
             matches.Add(toAdd);
         }
 
+        Debug.Log("step taken");
+        ScoreManager.Instance.TakeStep();
+
         if (matches.Any(m => m != null))
         {
             foreach (var yieldInstruction in matches
@@ -111,10 +115,12 @@ public class DragDropHandler : MonoBehaviour,
             yield return tileManager.FillTiles()
                 .OnComplete(EnableInput)
                 .WaitForCompletion();
+            EnableInput();
 
             yield break;
         }
 
+        // it did not find any matches
         tileManager.ReplaceTile(droppedOn, dragged);
         droppedOnTransform
             .DOMove(draggedTransform.position, .5f);
@@ -127,11 +133,24 @@ public class DragDropHandler : MonoBehaviour,
     }
 
     private IEnumerable<YieldInstruction> HandleTiles(
-        IEnumerable<Tile> tiles, TileManager tileManager)
+        Tile[] tiles, TileManager tileManager)
     {
-        var enumerable = tiles as Tile[] ?? tiles.ToArray();
-        yield return tileManager.RemovessExistingMatches(enumerable);
-        yield return tileManager.AddStatusTile(enumerable);
+        var values = (from tile in tiles
+            where tile.Number > 0
+            select tile.Number).ToArray();
+
+        if (values.Count() < 3)
+        {
+            yield break;
+        }
+
+        yield return tileManager.RemovessExistingMatches(tiles);
+        yield return tileManager.AddStatusTile(tiles, values);
+
+        foreach (var tile in tiles)
+        {
+            tile.Number = 0;
+        }
     }
 
 
@@ -151,7 +170,7 @@ public class DragDropHandler : MonoBehaviour,
         _initialPosition = eventData.selectedObject.transform.position;
 
         _selectedObject = eventData.selectedObject.gameObject;
-        _selectedObject.collider2D.enabled = false;
+        _selectedObject.GetComponent<Collider2D>().enabled = false;
 
         _initialParent = _selectedObject.transform.parent;
         _selectedObject.transform.SetParent(Panel);
@@ -167,7 +186,7 @@ public class DragDropHandler : MonoBehaviour,
 
         DisableInput();
 
-        _selectedObject.collider2D.enabled = true;
+        _selectedObject.GetComponent<Collider2D>().enabled = true;
         _delta = Vector2.zero;
 
         if (_currentPointer == null)

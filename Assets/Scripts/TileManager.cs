@@ -12,14 +12,13 @@ using Random = UnityEngine.Random;
 public class TileManager : MonoBehaviour,
     ITileNavigator
 {
-
-
     public static TileManager Instance
     {
         get { return _instance; }
         set { _instance = value; }
     }
 
+    public ScoreManager ScoreManager;
     public Vector2 DragBounds;
     public GameObject TilePrefab;
 
@@ -162,7 +161,7 @@ public class TileManager : MonoBehaviour,
     /// <returns></returns>
     private IEnumerable<byte> BuildFactors(IEnumerable<int> range)
     {
-        var factors = new System.Collections.Generic.List<byte>();
+        var factors = new List<byte>();
         var exclude = new byte[] { 1 };
 
         foreach (byte f in range)
@@ -327,11 +326,16 @@ public class TileManager : MonoBehaviour,
         return tile;
     }
 
-    public YieldInstruction AddStatusTile(IEnumerable<Tile> matches)
+    public YieldInstruction AddStatusTile(IEnumerable<Tile> matches, byte[] values)
     {
         var enumerable = matches as Tile[] ?? matches.ToArray();
         var first = enumerable.FirstOrDefault();
         var last = enumerable.LastOrDefault();
+        if (first == null || last == null || values.Any(a => a == 0))
+        {
+            return null;
+        }
+
         var firstRect = first.Image.transform;
         var lastRect = last.Image.transform;
 
@@ -339,12 +343,14 @@ public class TileManager : MonoBehaviour,
         // vertical matches
         if (Mathf.Approximately(firstRect.position.x, lastRect.position.x))
         {
-            centerPosition.y = firstRect.position.y + (.5f * (lastRect.position.y - firstRect.position.y));
+            centerPosition.y = firstRect.position.y + 
+                (.5f * (lastRect.position.y - firstRect.position.y));
         }
         // horizontal matches
         else
         {
-            centerPosition.x = firstRect.position.x + (.5f * (lastRect.position.x - firstRect.position.x));
+            centerPosition.x = firstRect.position.x + 
+                (.5f * (lastRect.position.x - firstRect.position.x));
         }
 
         var child = _tilePrefabInstance;
@@ -355,38 +361,52 @@ public class TileManager : MonoBehaviour,
         var image = child.GetComponent<Image>();
         var text = child.GetComponentInChildren<Text>();
 
-        var factors = Enumerable.Empty<byte>();
+        IEnumerable<byte> factors = null;
 
-        factors = enumerable.Aggregate(factors, (current, match) => 
-                current.Union(match.Number.Factors()))
-            .OrderBy(factor => factor);
+        foreach (var value in values)
+        {
+            Debug.Log("found match: " + value);
+            var valueFactors = value.Factors();
+            factors = (factors ?? valueFactors).Intersect(valueFactors);
+        }
 
-        text.text = factors.FirstOrDefault(f => f > 1) + string.Empty;
+        factors = values.Aggregate(factors, 
+            (current, match) => current.Intersect(match.Factors()))
+            .OrderByDescending(factor => factor);
+
+        var scoreValue = factors
+            .FirstOrDefault(f => f > 1);
+
+        text.text = scoreValue + string.Empty;
+
         image.color = Color.white;
         text.color = Color.black;
 
-        image.transform.DOLocalMove(new Vector3(0, 10f), .5f);
+        image.transform
+            .DOLocalMove(new Vector3(0, 10f), .5f);
 
-
-        return image.transform.DOScale(new Vector3(2f, 2f, 1f), .75f)
+        var instruction = image.transform
+            .DOScale(new Vector3(2f, 2f, 1f), .75f)
             .OnComplete(() =>
             {
                 text.DOFade(0f, .5f);
                 image.DOFade(0f, .5f);
             })
             .WaitForCompletion();
+
+        ScoreManager.AddScore(scoreValue);
+
+        return instruction;
     }
 
-    public YieldInstruction RemovessExistingMatches(IEnumerable<Tile> matches)
+    public YieldInstruction RemovessExistingMatches(Tile[] matches)
     {
         YieldInstruction instruction = null;
-
         foreach (var tile in matches)
         {
             tile.Image.DOFade(0f, .75f);
             instruction = tile.Text.DOFade(0f, .75f)
                 .WaitForCompletion();
-            tile.Number = 0;
         }
 
         return instruction;
@@ -487,6 +507,7 @@ public class TileManager : MonoBehaviour,
     {
         RestartLevel();
     }
+
 }
 
 
