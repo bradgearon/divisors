@@ -6,9 +6,12 @@ public class GameManager : MonoBehaviour
 {
     private ScreenFader _screenFader;
 
+    public static GameManager Instance { get; private set; }
+
 	// Use this for initialization
 	void Start ()
 	{
+        Instance = this;
 	    _screenFader = GetComponent<ScreenFader>();
 	}
 	
@@ -20,5 +23,15 @@ public class GameManager : MonoBehaviour
     public void OnClickPlay()
     {
         _screenFader.EndScene("game");
+    }
+
+    public void OnClickTitle()
+    {
+        _screenFader.EndScene("title");
+    }
+
+    public void OnGameOver()
+    {
+        _screenFader.EndScene("gameover");
     }
 }

@@ -30,7 +30,13 @@ public class ScoreManager : MonoBehaviour
     public void TakeStep()
     {
         stepsTaken++;
-        stepDisplay.text = maxSteps - stepsTaken + string.Empty;
+        var remaining = maxSteps - stepsTaken;
+        stepDisplay.text = remaining + string.Empty;
+
+        if (remaining < 1)
+        {
+            GameManager.Instance.OnGameOver();
+        }
     }
 
     public void AddScore(int value)

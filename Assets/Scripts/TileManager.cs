@@ -139,10 +139,7 @@ public class TileManager : MonoBehaviour,
                 tileTransform.anchoredPosition = new Vector2(
                     column*tilePrefabTransform.sizeDelta.x + leftPadding, tilePadding);
 
-                var middle = new Vector2(0.5f, 0.5f);
-                SetPivot(tileTransform, middle);
-                // tileTransform.anchorMin = middle;
-                // tileTransform.anchorMax = middle;
+                SetPivot(tileTransform, new Vector2(0.5f, 0.5f));
             }
         }
     }

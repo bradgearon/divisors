@@ -58,6 +58,7 @@ public class ScreenFader : MonoBehaviour
             // If the screen is almost black...
             if (FadeImg.color.a >= 0.9f)
             {
+                FadeImg.enabled = false;
                 // ... reload the level
                 SceneManager.LoadScene(scene);
                 yield break;
