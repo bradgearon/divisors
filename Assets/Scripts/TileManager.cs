@@ -73,6 +73,17 @@ public class TileManager : MonoBehaviour,
         RestartLevel();
     }
 
+    public static void SetPivot(RectTransform rectTransform, Vector2 pivot)
+    {
+        if (rectTransform == null) return;
+
+        var size = rectTransform.rect.size;
+        var deltaPivot = rectTransform.pivot - pivot;
+        var deltaPosition = new Vector2(deltaPivot.x * size.x, deltaPivot.y * size.y);
+        rectTransform.pivot = pivot;
+        rectTransform.localPosition -= (Vector3) deltaPosition;
+    }
+
     private void CreateTiles(RectTransform tilePrefabTransform)
     {
         var tileCount = rows * columns;
@@ -127,6 +138,11 @@ public class TileManager : MonoBehaviour,
                 var leftPadding = tilePadding*column + tilePadding;
                 tileTransform.anchoredPosition = new Vector2(
                     column*tilePrefabTransform.sizeDelta.x + leftPadding, tilePadding);
+
+                var middle = new Vector2(0.5f, 0.5f);
+                SetPivot(tileTransform, middle);
+                // tileTransform.anchorMin = middle;
+                // tileTransform.anchorMax = middle;
             }
         }
     }
