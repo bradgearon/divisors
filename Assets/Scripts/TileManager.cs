@@ -26,41 +26,116 @@ public class TileManager : MonoBehaviour,
     public Transform TileContainer;
     public ColorSetting[] ColorSettings = new ColorSetting[10];
 
+    public string tileLayerName = "raylayer";
     public int Min = 2;
     public int Max = 99;
+    public int rows = 6;
+    public int columns = 5;
+    public int rowPadding = 10;
+    public int tilePadding = 10;
     public byte level = 1;
 
     private readonly object _locker = new object();
     private static TileManager _instance;
 
     private Tile[] _tiles = new Tile[30];
+    private Image[] _imageElements;
+    private Text[] _textElements;
+
     private byte[] _possible;
     private GameObject _tilePrefabInstance;
-    
-    public Transform TopTransform;
 
-    private IList<Image> _imageElements;
-    private IList<Text> _textElements;
+    public Transform TopTransform;
     public Transform Panel;
 
     void Start()
     {
         _tilePrefabInstance = Instantiate(TilePrefab);
-
+        var tilePrefabTransform = _tilePrefabInstance.GetComponent<RectTransform>();
         _instance = this;
-        if (TileContainer == null) return;
 
-        _imageElements = TileContainer.GetComponentsInChildren<Image>();
-        _textElements = TileContainer.GetComponentsInChildren<Text>();
+        if (TileContainer == null)
+        {
+            return;
+        }
+
+        if (TileContainer.childCount == 0)
+        {
+            CreateTiles(tilePrefabTransform);
+        }
+        else
+        {
+            _tiles = new Tile[30];
+            _imageElements = TileContainer.GetComponentsInChildren<Image>();
+            _textElements = TileContainer.GetComponentsInChildren<Text>();
+        }
 
         RestartLevel();
+    }
+
+    private void CreateTiles(RectTransform tilePrefabTransform)
+    {
+        var tileCount = rows * columns;
+
+        _tiles = new Tile[tileCount];
+        _imageElements = new Image[tileCount];
+        _textElements = new Text[tileCount];
+
+        var tileLayer = LayerMask.NameToLayer(tileLayerName);
+        var rowPrefab = new GameObject("row");
+        var rowPrefabTransform = rowPrefab.AddComponent<RectTransform>();
+        rowPrefabTransform.pivot = new Vector2(1, 0);
+
+        rowPrefabTransform.anchorMin = new Vector2(0, 1);
+        rowPrefabTransform.anchorMax = new Vector2(1, 1);
+
+        for (var row = 0; row < rows; row++)
+        {
+            // create the row
+            var rowContainer = (GameObject) Instantiate(rowPrefab, TileContainer, false);
+
+            rowContainer.name = "row";
+            rowContainer.transform.localScale = Vector3.one;
+
+            var rowTransform = rowContainer.GetComponent<RectTransform>();
+
+            // set padding
+            var rowHeight = tilePrefabTransform.sizeDelta.y + rowPadding;
+
+            rowTransform.anchoredPosition = new Vector2(0, (row + 1)*-rowHeight - rowPadding);
+            rowTransform.sizeDelta = new Vector2(0, rowHeight);
+
+            // fill it with tiles
+            for (var column = 0; column < columns; column++)
+            {
+                var tile = (GameObject) Instantiate(_tilePrefabInstance, rowContainer.transform, false);
+
+                tile.transform.SetSiblingIndex(column);
+                _imageElements[row * columns + column] = tile.GetComponentInChildren<Image>();
+                _textElements[row * columns + column] = tile.GetComponentInChildren<Text>();
+
+                tile.layer = tileLayer;
+                tile.name = "Button";
+                tile.transform.localScale = Vector3.one;
+
+                var tileTransform = tile.GetComponent<RectTransform>();
+                tileTransform.pivot = new Vector2(0, 0);
+
+                tileTransform.anchorMin = new Vector2(0, 0);
+                tileTransform.anchorMax = new Vector2(0, 0);
+
+                var leftPadding = tilePadding*column + tilePadding;
+                tileTransform.anchoredPosition = new Vector2(
+                    column*tilePrefabTransform.sizeDelta.x + leftPadding, tilePadding);
+            }
+        }
     }
 
     private void RestartLevel()
     {
         InitTiles(_imageElements, _textElements);
 
-        var range = Enumerable.Range(Min * level, (Max * level)+ 1);
+        var range = Enumerable.Range(Min * level, (Max * level) + 1);
         _possible = BuildFactors(range).ToArray();
 
         RandomizeTiles();
@@ -76,7 +151,7 @@ public class TileManager : MonoBehaviour,
                 var matches = RemoveMatches(tile).ToArray();
                 if (matches.Length > 0)
                 {
-                    tile.Number = GetNumber();   
+                    tile.Number = GetNumber();
                 }
             }
         }
@@ -115,7 +190,7 @@ public class TileManager : MonoBehaviour,
     /// </summary>
     /// <param name="imageElements">image elements for tile background</param>
     /// <param name="textElements">text elements for tile foreground</param>
-    private void InitTiles(IList<Image> imageElements, IList<Text> textElements)
+    private void InitTiles(Image[] imageElements, Text[] textElements)
     {
         for (var i = 0; i < _tiles.Length; i++)
         {
@@ -133,7 +208,7 @@ public class TileManager : MonoBehaviour,
     /// <summary>
     /// generates the numbers!
     /// </summary>
-    /// <returns>ur mom</returns>
+    ///
     public void RandomizeTiles()
     {
         foreach (var tile in _tiles.Where(t => t.Number == 0))
@@ -353,13 +428,13 @@ public class TileManager : MonoBehaviour,
         // vertical matches
         if (Mathf.Approximately(firstRect.position.x, lastRect.position.x))
         {
-            centerPosition.y = firstRect.position.y + 
+            centerPosition.y = firstRect.position.y +
                 (.5f * (lastRect.position.y - firstRect.position.y));
         }
         // horizontal matches
         else
         {
-            centerPosition.x = firstRect.position.x + 
+            centerPosition.x = firstRect.position.x +
                 (.5f * (lastRect.position.x - firstRect.position.x));
         }
 
@@ -380,7 +455,7 @@ public class TileManager : MonoBehaviour,
             factors = (factors ?? valueFactors).Intersect(valueFactors);
         }
 
-        factors = values.Aggregate(factors, 
+        factors = values.Aggregate(factors,
             (current, match) => current.Intersect(match.Factors()))
             .OrderByDescending(factor => factor);
 
@@ -494,14 +569,15 @@ public class TileManager : MonoBehaviour,
             {
                 newArray[i].Index = i;
                 _tiles[i] = newArray[i];
+
             }
 
             return instruction;
         }
     }
 
-    private Tweener MoveOffAndOnToBoard(Tile current, 
-        float posFirstY, int emptySpots, float posY, 
+    private Tweener MoveOffAndOnToBoard(Tile current,
+        float posFirstY, int emptySpots, float posY,
         Action after = null)
     {
         var color = current.Image.color;
@@ -515,7 +591,7 @@ public class TileManager : MonoBehaviour,
         current.Number = GetNumber();
         image.color = new Color(color.r, color.g, color.b, 1f);
         text.color = new Color(textColor.r, textColor.g, textColor.b, 1f);
-        
+
         return current.Image.transform.DOMoveY(posY, 1f);
     }
 
