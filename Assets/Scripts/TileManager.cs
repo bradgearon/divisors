@@ -81,7 +81,7 @@ public class TileManager : MonoBehaviour,
         var deltaPivot = rectTransform.pivot - pivot;
         var deltaPosition = new Vector2(deltaPivot.x * size.x, deltaPivot.y * size.y);
         rectTransform.pivot = pivot;
-        rectTransform.localPosition -= (Vector3) deltaPosition;
+        rectTransform.localPosition -= (Vector3)deltaPosition;
     }
 
     private void CreateTiles(RectTransform tilePrefabTransform)
@@ -100,10 +100,14 @@ public class TileManager : MonoBehaviour,
         rowPrefabTransform.anchorMin = new Vector2(0, 1);
         rowPrefabTransform.anchorMax = new Vector2(1, 1);
 
+        var tileContainerTransform = TileContainer.GetComponent<RectTransform>();
+        var tileWidth = (tileContainerTransform.rect.width - (columns * tilePadding)) / columns;
+        Debug.Log("tile width: " + tileWidth);
+
         for (var row = 0; row < rows; row++)
         {
             // create the row
-            var rowContainer = (GameObject) Instantiate(rowPrefab, TileContainer, false);
+            var rowContainer = (GameObject)Instantiate(rowPrefab, TileContainer, false);
 
             rowContainer.name = "row";
             rowContainer.transform.localScale = Vector3.one;
@@ -113,15 +117,15 @@ public class TileManager : MonoBehaviour,
             // set padding
             var rowHeight = tilePrefabTransform.sizeDelta.y + rowPadding;
 
-            rowTransform.anchoredPosition = new Vector2(0, (row + 1)*-rowHeight - rowPadding);
+            rowTransform.anchoredPosition = new Vector2(0, (row + 1) * -rowHeight - rowPadding);
             rowTransform.sizeDelta = new Vector2(0, rowHeight);
 
             // fill it with tiles
             for (var column = 0; column < columns; column++)
             {
-                var tile = (GameObject) Instantiate(_tilePrefabInstance, rowContainer.transform, false);
-
+                var tile = (GameObject)Instantiate(_tilePrefabInstance, rowContainer.transform, false);
                 tile.transform.SetSiblingIndex(column);
+
                 _imageElements[row * columns + column] = tile.GetComponentInChildren<Image>();
                 _textElements[row * columns + column] = tile.GetComponentInChildren<Text>();
 
@@ -130,14 +134,17 @@ public class TileManager : MonoBehaviour,
                 tile.transform.localScale = Vector3.one;
 
                 var tileTransform = tile.GetComponent<RectTransform>();
+
+                tileTransform.sizeDelta = new Vector2(tileWidth, tileWidth);
+
                 tileTransform.pivot = new Vector2(0, 0);
 
                 tileTransform.anchorMin = new Vector2(0, 0);
                 tileTransform.anchorMax = new Vector2(0, 0);
 
-                var leftPadding = tilePadding*column + tilePadding;
+                var leftPadding = tilePadding * column + tilePadding;
                 tileTransform.anchoredPosition = new Vector2(
-                    column*tilePrefabTransform.sizeDelta.x + leftPadding, tilePadding);
+                    column * tilePrefabTransform.sizeDelta.x + leftPadding, tilePadding);
 
                 SetPivot(tileTransform, new Vector2(0.5f, 0.5f));
             }
@@ -483,10 +490,8 @@ public class TileManager : MonoBehaviour,
             .DOLocalMove(new Vector3(0, 10f), .5f)
             .OnComplete(() =>
             {
-                effect = (GameObject)Instantiate(TileEffectPrefab, Panel);
-                effect.transform.localScale = Vector3.one;
-                effect.transform.localPosition = new Vector3(0, 0, 100);
-                effect.GetComponent<ParticleSystem>().DOPlay();
+                text.DOFade(0f, .5f);
+                image.DOFade(0f, .5f);
             })
             .WaitForCompletion();
 
@@ -494,8 +499,10 @@ public class TileManager : MonoBehaviour,
             .DOScale(new Vector3(2f, 2f, 1f), .75f)
             .OnComplete(() =>
             {
-                text.DOFade(0f, .5f);
-                image.DOFade(0f, .5f);
+                effect = (GameObject)Instantiate(TileEffectPrefab, Panel);
+                effect.transform.localScale = Vector3.one;
+                effect.transform.localPosition = new Vector3(0, 0, 100);
+                effect.GetComponent<ParticleSystem>().DOPlay();
             })
             .WaitForCompletion();
 
@@ -504,14 +511,37 @@ public class TileManager : MonoBehaviour,
         return instruction;
     }
 
+    public static Vector3 Average(IEnumerable<Vector3> source)
+    {
+        var parts = source.ToArray();
+        return new Vector2(parts.Average(part => part.x), 
+            parts.Average(part => part.y));
+    }
+
     public YieldInstruction RemovessExistingMatches(Tile[] matches)
     {
         YieldInstruction instruction = null;
+        var matchesPositions = matches
+            .Select(match => match.Image.transform.position);
+        var average = Average(matchesPositions);
+
         foreach (var tile in matches)
         {
-            tile.Image.DOFade(0f, .75f);
-            instruction = tile.Text.DOFade(0f, .75f)
-                .WaitForCompletion();
+            var tile1 = tile;
+            var originalPosition = tile1.Image.transform.position;
+            instruction = tile.Image.transform
+                .DOMove(average, .75f)
+                .OnComplete(() =>
+                {
+                    tile1.Image.transform.DOScale(Vector2.zero, .75f)
+                    .OnComplete(() =>
+                        {
+                            tile1.Image.transform.localScale = Vector3.one;
+                            tile1.Image.transform.position = originalPosition;
+                            tile1.Image.DOFade(0f, 0f);
+                            tile1.Text.DOFade(0f, 0f);
+                        });
+                }).WaitForCompletion();
         }
 
         return instruction;

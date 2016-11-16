@@ -7,6 +7,7 @@ public class Tile
 {
     public Image Image;
     public Text Text;
+    public Vector3 OriginalPosition;
     
     private byte _number = 0;
     public int Index = 0;
