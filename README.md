@@ -4,13 +4,8 @@ Match three numbers that share divisors. Higher least common divisor awards high
 * ux in [notes](notes) folder
 * notes in the [ux](ux) folder [or the onenote version](https://onedrive.live.com/redir?page=view&resid=2CC398494F6817C1!12510&authkey=!ANv6bLCRBNllzAw)
 
-* needs some match logic work []()
-* when pointing at a match the match should grow as you move the finger closer, based on feedback from users []()
-  think matchVector2 - fingerVector2 length would work as something to 
-* tests and ioc woulda saved so much time // looks at unity
-* 
-
-if you make a math game with ads, I will personally kick you in the face.
-
+* needs some match logic work
+* when pointing at a match the match should grow as you move the finger closer
+  think matchVector2 - fingerVector2 length would work as something to
 
 
