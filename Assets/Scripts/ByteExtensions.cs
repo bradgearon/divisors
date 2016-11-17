@@ -8,7 +8,7 @@ public static class ByteExtensions
     public static IEnumerable<byte> Factors(this byte x)
     {
         var max = (byte)x / 2;
-        for (byte i = 1; i <= max; i++)
+        for (byte i = 2; i <= max; i++)
         {
             if (0 == (x % i))
             {

@@ -159,17 +159,17 @@ public class TileManager : MonoBehaviour,
         _possible = BuildFactors(range).ToArray();
 
         RandomizeTiles();
-        MakeShitHarder();
+        KeepRandomizingTiles();
     }
 
-    private void MakeShitHarder()
+    private void KeepRandomizingTiles()
     {
         for (var iw = 0; iw < 5; iw++)
         {
             foreach (var tile in _tiles)
             {
-                var matches = RemoveMatches(tile).ToArray();
-                if (matches.Length > 0)
+                var matches = CheckDirections(tile);
+                if (matches.Any(arr => arr.Any()))
                 {
                     tile.Number = GetNumber();
                 }
@@ -195,10 +195,13 @@ public class TileManager : MonoBehaviour,
     /// <returns>a list of lists... of tiles</returns>
     public IEnumerable<IEnumerable<Tile>> FindMatches(Tile current)
     {
-        Tile left;
-        Tile top;
-
         Debug.Log("enter find matches");
+
+        return CheckDirections(current);
+    }
+
+    private IEnumerable<IEnumerable<Tile>> CheckDirections(Tile current)
+    {
         var matches = new TileMatch[4];
 
         matches[0] = GetMatchesNew(current, TileAxis.Horizontal, 1, default(TileMatch));
@@ -206,12 +209,9 @@ public class TileManager : MonoBehaviour,
         matches[2] = GetMatchesNew(current, TileAxis.Vertical, 1, default(TileMatch));
         matches[3] = GetMatchesNew(current, TileAxis.Vertical, -1, matches[2]);
 
-        return matches.Select(arr => arr.Tiles.AsEnumerable());
-
-        MoveToTopLeft(current, out left, out top);
-
-        return GetMatches(left, t => t.Right()).ToArray()
-            .Union(GetMatches(top, t => t.Bottom()).ToArray());
+        return matches
+            .Where(arr => arr.Tiles.Length > 2)
+            .Select(arr => arr.Tiles.AsEnumerable());
     }
 
     /// <summary>
@@ -292,27 +292,6 @@ public class TileManager : MonoBehaviour,
         return factors.Distinct();
     }
 
-    private IEnumerable<IEnumerable<Tile>> RemoveMatches(Tile current)
-    {
-        Tile leftMost;
-        Tile topMost;
-
-        MoveToTopLeft(current, out leftMost, out topMost);
-
-        return GetMatches(leftMost, t => t.Right(), 1)
-            .Union(GetMatches(topMost, t => t.Bottom(), 1))
-            .ToArray();
-    }
-
-    private void MoveToTopLeft(Tile tile, out Tile left, out Tile top, int maxX = 5, int maxY = 6)
-    {
-        var leftRank = 0;
-        var topRank = 0;
-
-        left = Move(tile, t => t.Left(), maxX, out leftRank);
-        top = Move(tile, t => t.Top(), maxY, out topRank);
-    }
-
     private enum TileAxis
     {
         Horizontal = -1,
@@ -346,118 +325,62 @@ public class TileManager : MonoBehaviour,
         return match;
     }
 
-    private List<Tile> getMatches(int start, byte[] factors, int offset, int max)
+    private TileMatch getMatches(TileMatch match, int start, int offset, int max)
     {
-        var tiles = new List<Tile>();
-        for (int i = start + offset, moved = 0; 
+        var tiles = new List<Tile>(match.Tiles);
+        var factors = match.Factors;
+
+        for (int i = start, moved = 0; 
             i >= 0 && i < _tiles.Length && moved < max; 
             i += offset, moved++)
         {
             var tile = _tiles[i];
-            factors = factors.Intersect(tile.Number.Factors()).ToArray();
-            if (!factors.Any())
+            var newFactors = factors.Intersect(tile.Number.Factors()).ToArray();
+            if (!newFactors.Any())
             {
                 break;
             }
+
+            factors = newFactors;
             tiles.Add(tile);
         }
-        return tiles;
+
+        return new TileMatch
+        {
+            Tiles = tiles.ToArray(),
+            Factors = factors
+        };
     }
 
     private TileMatch GetMatchesNew(Tile start, TileAxis axis, int direction,
         TileMatch previousMatch)
     {
         var axisLength = axis == TileAxis.Horizontal ? 1 : columns;
-        var max = axis == TileAxis.Horizontal ?
+        var max = Math.Abs(axis == TileAxis.Horizontal ?
             (direction > 0 ? start.Index % columns - columns + 1 : start.Index % columns)
-            : _tiles.Length;
+            : _tiles.Length);
         var offset = direction * axisLength;
 
-        var tileMatch = new TileMatch();
         var factors = start.Number.Factors().ToArray();
-        var newMatches = getMatches(start.Index, factors, offset, max);
+        var tileMatch = new TileMatch()
+        {
+            Tiles = new[] {start},
+            Factors = factors
+        };
 
-        tileMatch.Factors = factors;
-        tileMatch.Tiles = newMatches.ToArray();
-
+        var newMatch = getMatches(tileMatch, start.Index + offset, offset, max);
         var previous = GetPreviousMatches(previousMatch, factors);
 
         if (previous.Factors != null)
         {
-            var withPrevious = getMatches(start.Index, previous.Factors, offset, max);
-            if (withPrevious.Count > newMatches.Count)
+            var withPrevious = getMatches(previous, start.Index + offset, offset, max);
+            if (withPrevious.Tiles.Length > newMatch.Tiles.Length)
             {
-                tileMatch.Factors = previous.Factors;
-                tileMatch.Tiles = withPrevious.ToArray();
+                return withPrevious;
             }
         }
 
-        return tileMatch;
-    }
-
-    private IEnumerable<IEnumerable<Tile>> GetMatches(
-        Tile current, Func<Tile, Tile> direction, int matchCountMax = 2)
-    {
-        var exclude = new byte[] { 1 };
-        var factors = new byte[0];
-        var matches = new List<Tile>() { current };
-
-        var matchCount = 1;
-        var moved = 0;
-
-        do
-        {
-            var currentFactors = current.Number.Factors()
-                .Except(exclude)
-                .ToArray();
-
-            factors = factors
-                .Except(exclude)
-                .Intersect(currentFactors)
-                .ToArray();
-
-            if (factors.Any())
-            {
-                // add to the buffer
-                matches.Add(current);
-                matchCount++;
-            }
-            else
-            {
-                if (matchCount > matchCountMax)
-                {
-                    // if you have a buffer yield it
-                    yield return matches;
-                }
-                // reset
-                matches = new List<Tile>() { current };
-                factors = currentFactors;
-                matchCount = 1;
-            }
-
-            current = Move(current, direction, 1, out moved);
-        }
-        while (moved != 0);
-
-        if (matchCount > matchCountMax)
-        {
-            yield return matches;
-        }
-    }
-
-    private Tile Move(Tile tile, Func<Tile, Tile> func, int distance, out int rank)
-    {
-        for (rank = 0; rank < distance; rank++)
-        {
-            var thisTile = func(tile);
-            if (thisTile == null)
-            {
-                rank = Math.Min(0, rank--);
-                break;
-            }
-            tile = thisTile;
-        }
-        return tile;
+        return newMatch;
     }
 
     public void ReplaceTile(Tile sourceTile, Tile destinationTile)

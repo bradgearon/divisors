@@ -87,6 +87,7 @@ public class DragDropHandler : MonoBehaviour,
         var matches = new List<Tile[]>();
         var draggedMatches = tileManager.FindMatches(dragged).ToArray();
         var droppedMatches = tileManager.FindMatches(droppedOn).ToArray();
+
         Func<IEnumerable<Tile>, bool> notNull = l => l != null;
 
         foreach (var gr in draggedMatches.Where(notNull))
