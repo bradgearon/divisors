@@ -304,24 +304,22 @@ public class TileManager : MonoBehaviour,
         public byte[] Factors { get; set; }
     }
 
-    private TileMatch GetPreviousMatches(TileMatch match, byte[] factors)
+    private TileMatch GetPreviousMatches(TileMatch match, TileMatch current)
     {
-        if (match.Factors == null)
+        if (match.Factors == null || match.Factors.Length < 1)
         {
             return match;
         }
 
-        if (match.Factors.Length > 0)
+        var previousMatching = match.Factors
+            .Intersect(current.Factors).ToArray();
+
+        if (previousMatching.Any())
         {
-            var previousMatching = match.Factors
-                .Intersect(factors).ToArray();
-
-            if (previousMatching.Any())
-            {
-                match.Factors = previousMatching;
-            }
+            match.Factors = previousMatching;
+            match.Tiles = match.Tiles.Union(current.Tiles).ToArray();
         }
-
+        
         return match;
     }
 
@@ -369,7 +367,7 @@ public class TileManager : MonoBehaviour,
         };
 
         var newMatch = getMatches(tileMatch, start.Index + offset, offset, max);
-        var previous = GetPreviousMatches(previousMatch, factors);
+        var previous = GetPreviousMatches(previousMatch, tileMatch);
 
         if (previous.Factors != null)
         {
