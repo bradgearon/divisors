@@ -667,7 +667,7 @@ public class TileManager : MonoBehaviour,
 
     public void OnRestartClick()
     {
-        RestartLevel();
+        GameManager.Instance.LoadLevel();
     }
 
 }

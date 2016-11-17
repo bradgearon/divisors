@@ -46,8 +46,12 @@ public class GameManager : MonoBehaviour
         var selected = int.Parse(level);
         SelectedLevel = Levels[selected - 1];
 
+        LoadLevel();
+    }
+
+    public void LoadLevel()
+    {
         DontDestroyOnLoad(this);
-        Debug.Log("selected level: " + selected);
         _screenFader.EndScene("game");
     }
 
