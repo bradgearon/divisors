@@ -50,6 +50,21 @@ public class TileManager : MonoBehaviour,
 
     void Start()
     {
+        if (GameManager.Instance == null)
+        {
+            var prefab = Resources.Load("GameManager");
+            Instantiate(prefab);
+        }
+
+        if (GameManager.Instance.SelectedLevel != null)
+        {
+            var selectedLevel = GameManager.Instance.SelectedLevel;
+
+            Min = selectedLevel.Min;
+            Max = selectedLevel.Max;
+            level = (byte) selectedLevel.Multiplier;
+        }
+
         _tilePrefabInstance = Instantiate(TilePrefab);
         var tilePrefabTransform = _tilePrefabInstance.GetComponent<RectTransform>();
         _instance = this;
