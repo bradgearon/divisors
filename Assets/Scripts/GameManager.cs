@@ -8,6 +8,7 @@ public class GameManager : MonoBehaviour
 {
     private ScreenFader _screenFader;
     public Level SelectedLevel { get; private set; }
+    public int Score;
 
     public static GameManager Instance { get; private set; }
 
@@ -53,7 +54,7 @@ public class GameManager : MonoBehaviour
     public void OnClickPlay()
     {
         DontDestroyOnLoad(this);
-        _screenFader.EndScene("game");
+        _screenFader.EndScene("levels");
     }
 
     public void OnClickTitle()
@@ -62,8 +63,9 @@ public class GameManager : MonoBehaviour
         _screenFader.EndScene("title");
     }
 
-    public void OnGameOver()
+    public void OnGameOver(int score)
     {
+        Score = score;
         DontDestroyOnLoad(this);
         _screenFader.EndScene("gameover");
     }

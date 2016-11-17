@@ -35,7 +35,7 @@ public class ScoreManager : MonoBehaviour
 
         if (remaining < 1)
         {
-            GameManager.Instance.OnGameOver();
+            GameManager.Instance.OnGameOver(score);
         }
     }
 
