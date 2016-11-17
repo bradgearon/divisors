@@ -199,6 +199,15 @@ public class TileManager : MonoBehaviour,
         Tile top;
 
         Debug.Log("enter find matches");
+        var matches = new TileMatch[4];
+
+        matches[0] = GetMatchesNew(current, TileAxis.Horizontal, 1, default(TileMatch));
+        matches[1] = GetMatchesNew(current, TileAxis.Horizontal, -1, matches[0]);
+        matches[2] = GetMatchesNew(current, TileAxis.Vertical, 1, default(TileMatch));
+        matches[3] = GetMatchesNew(current, TileAxis.Vertical, -1, matches[2]);
+
+        return matches.Select(arr => arr.Tiles.AsEnumerable());
+
         MoveToTopLeft(current, out left, out top);
 
         return GetMatches(left, t => t.Right()).ToArray()
@@ -302,6 +311,88 @@ public class TileManager : MonoBehaviour,
 
         left = Move(tile, t => t.Left(), maxX, out leftRank);
         top = Move(tile, t => t.Top(), maxY, out topRank);
+    }
+
+    private enum TileAxis
+    {
+        Horizontal = -1,
+        Vertical = 1
+    }
+
+    private struct TileMatch
+    {
+        public Tile[] Tiles { get; set; }
+        public byte[] Factors { get; set; }
+    }
+
+    private TileMatch GetPreviousMatches(TileMatch match, byte[] factors)
+    {
+        if (match.Factors == null)
+        {
+            return match;
+        }
+
+        if (match.Factors.Length > 0)
+        {
+            var previousMatching = match.Factors
+                .Intersect(factors).ToArray();
+
+            if (previousMatching.Any())
+            {
+                match.Factors = previousMatching;
+            }
+        }
+
+        return match;
+    }
+
+    private List<Tile> getMatches(int start, byte[] factors, int offset, int max)
+    {
+        var tiles = new List<Tile>();
+        for (int i = start + offset, moved = 0; 
+            i >= 0 && i < _tiles.Length && moved < max; 
+            i += offset, moved++)
+        {
+            var tile = _tiles[i];
+            factors = factors.Intersect(tile.Number.Factors()).ToArray();
+            if (!factors.Any())
+            {
+                break;
+            }
+            tiles.Add(tile);
+        }
+        return tiles;
+    }
+
+    private TileMatch GetMatchesNew(Tile start, TileAxis axis, int direction,
+        TileMatch previousMatch)
+    {
+        var axisLength = axis == TileAxis.Horizontal ? 1 : columns;
+        var max = axis == TileAxis.Horizontal ?
+            (direction > 0 ? start.Index % columns - columns + 1 : start.Index % columns)
+            : _tiles.Length;
+        var offset = direction * axisLength;
+
+        var tileMatch = new TileMatch();
+        var factors = start.Number.Factors().ToArray();
+        var newMatches = getMatches(start.Index, factors, offset, max);
+
+        tileMatch.Factors = factors;
+        tileMatch.Tiles = newMatches.ToArray();
+
+        var previous = GetPreviousMatches(previousMatch, factors);
+
+        if (previous.Factors != null)
+        {
+            var withPrevious = getMatches(start.Index, previous.Factors, offset, max);
+            if (withPrevious.Count > newMatches.Count)
+            {
+                tileMatch.Factors = previous.Factors;
+                tileMatch.Tiles = withPrevious.ToArray();
+            }
+        }
+
+        return tileMatch;
     }
 
     private IEnumerable<IEnumerable<Tile>> GetMatches(
@@ -487,7 +578,7 @@ public class TileManager : MonoBehaviour,
 
         GameObject effect = null;
         image.transform
-            .DOLocalMove(new Vector3(0, 10f), .5f)
+            .DOLocalMove(new Vector3(0, 10f), .75f)
             .OnComplete(() =>
             {
                 text.DOFade(0f, .5f);
@@ -514,7 +605,7 @@ public class TileManager : MonoBehaviour,
     public static Vector3 Average(IEnumerable<Vector3> source)
     {
         var parts = source.ToArray();
-        return new Vector2(parts.Average(part => part.x), 
+        return new Vector2(parts.Average(part => part.x),
             parts.Average(part => part.y));
     }
 
