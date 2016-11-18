@@ -5,4 +5,6 @@ public class Level
     public int Max = 14;
 
     public int Multiplier = 1;
+
+    public int HighScore = 0;
 }

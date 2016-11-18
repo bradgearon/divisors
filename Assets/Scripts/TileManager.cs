@@ -48,8 +48,14 @@ public class TileManager : MonoBehaviour,
     public Transform TopTransform;
     public Transform Panel;
 
+    private bool easyMode;
+    private byte[] easyFactors = new byte[] { 2, 3, 4, 5, 6, 7, 8, 9 };
+    private bool debugPlacement = false;
+
     void Start()
     {
+        easyMode = GameManager.Instance.EasyMode;
+
         if (GameManager.Instance.SelectedLevel != null)
         {
             var selectedLevel = GameManager.Instance.SelectedLevel;
@@ -180,7 +186,7 @@ public class TileManager : MonoBehaviour,
                 var matches = CheckDirections(tile);
                 if (matches.Any(arr => arr.Any()))
                 {
-                    tile.Number = GetNumber();
+                    setTileNumberColor(tile);
                 }
             }
         }
@@ -238,6 +244,15 @@ public class TileManager : MonoBehaviour,
                 Text = textElements[i],
                 Image = imageElements[i]
             };
+
+            if (!debugPlacement)
+            {
+                continue;
+            }
+
+            var newText = (Text) Instantiate(_tiles[i].Text, _tiles[i].Text.transform);
+            newText.transform.localPosition = new Vector3(5, 1, 0);
+            newText.text = string.Format(" {0}", i);
         }
     }
 
@@ -251,16 +266,49 @@ public class TileManager : MonoBehaviour,
     {
         foreach (var tile in _tiles.Where(t => t.Number == 0))
         {
-            var color = Random.Range(0, ColorSettings.Length);
-            SetTileColor(tile, color);
-
-            var number = GetNumber();
-            tile.Number = number;
+            setTileNumberColor(tile);
         }
+    }
+
+    private void setTileNumberColor(Tile tile)
+    {
+        var color = Random.Range(0, ColorSettings.Length);
+        var number = GetNumber();
+        tile.Number = number;
+
+        SetTileColor(tile, color);
     }
 
     private void SetTileColor(Tile tile, int color)
     {
+        // using factors 2, 3, 4, 5, 6, 7, 8, 9
+        if (easyMode)
+        {
+            var factors = tile.Number.Factors().OrderByDescending(a => a);
+            foreach (var factor in factors)
+            {
+                var found = false;
+                for (var i = 0; i < easyFactors.Length; i++)
+                {
+                    if (factor != easyFactors[i])
+                    {
+                        continue;
+                    }
+
+                    found = true;
+                    color = i;
+                    Debug.Log("using color: " + color + " for factor: " + factor + " for number: " + tile.Number);
+
+                    break;
+                }
+
+                if (found)
+                {
+                    break;
+                }
+            }
+        }
+
         tile.Color = color;
         tile.Image.color = ColorSettings[color].BackColor;
         tile.Text.color = ColorSettings[color].TextColor;
@@ -644,17 +692,13 @@ public class TileManager : MonoBehaviour,
         float posFirstY, int emptySpots, float posY,
         Action after = null)
     {
-        var color = current.Image.color;
-        var textColor = current.Text.color;
         var offBoardY = TopTransform.position.y;
         var image = current.Image;
-        var text = current.Text;
 
         current.Image.transform.position = new Vector3(
             image.transform.position.x, offBoardY, image.transform.position.z);
-        current.Number = GetNumber();
-        image.color = new Color(color.r, color.g, color.b, 1f);
-        text.color = new Color(textColor.r, textColor.g, textColor.b, 1f);
+
+        setTileNumberColor(current);
 
         return current.Image.transform.DOMoveY(posY, 1f);
     }

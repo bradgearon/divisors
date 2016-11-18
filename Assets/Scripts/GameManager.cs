@@ -1,25 +1,117 @@
 ﻿using System;
 using UnityEngine;
 using System.Collections;
+using Newtonsoft.Json;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+using DG.Tweening;
+using DG.Tweening.Core;
 
 public class GameManager : MonoBehaviour
 {
     private ScreenFader _screenFader;
     public Level SelectedLevel { get; private set; }
+    public bool EasyMode = false;
+
+    public string leftStarName = "left-star";
+    public string rightStarName = "right-star";
+    public string starName = "star";
+
+    public Color completeColor;
+
+    public int minWin = 2500;
+    public int midWin = 5000;
+    public int maxWin = 10000;
+
+    public Material glowMaterial;
+
     public int Score;
 
     public static GameManager Instance { get; private set; }
 
     public Level[] Levels = new Level[12];
+    public int LevelIndex = 0;
 
     void Awake()
     {
         Instance = this;
         SceneManager.sceneLoaded += OnSceneLoaded;
         _screenFader = GetComponent<ScreenFader>();
+
+        var levelsJson = PlayerPrefs.GetString("levels");
+        if (!string.IsNullOrEmpty(levelsJson))
+        {
+            Debug.Log(levelsJson);
+            var levels = JsonConvert.DeserializeObject<Level[]>(levelsJson);
+            for (var i = 0; i < levels.Length; i++)
+            {
+                Levels[i].HighScore = levels[i].HighScore;
+            }
+        }
     }
+
+    public void SetLevel(int level)
+    {
+        LevelIndex = level;
+        SelectedLevel = Levels[level];
+    }
+
+    public IEnumerator SetStars(Transform stars, Level level, bool setGlow)
+    {
+        var leftStar = stars.FindChild(leftStarName).GetComponent<Image>();
+        var rightStar = stars.FindChild(rightStarName).GetComponent<Image>();
+        var star = stars.FindChild(starName).GetComponent<Image>();
+
+        if (level.HighScore > 2500)
+        {
+            leftStar.color = completeColor;
+            if (setGlow)
+            {
+                leftStar.material = glowMaterial;
+            }
+        }
+
+        if (level.HighScore > 5000)
+        {
+            rightStar.color = completeColor;
+            if (setGlow)
+            {
+                rightStar.material = glowMaterial;
+            }
+        }
+
+        if (level.HighScore > 10000)
+        {
+            star.color = completeColor;
+            if (setGlow)
+            {
+                star.material = glowMaterial;
+            }
+        }
+
+        if (!setGlow)
+        {
+            yield return null;
+        }
+
+        yield return DOTween.To(
+            () => leftStar.fillAmount, 
+            amount => leftStar.fillAmount = amount, 1f, 1f)
+            .WaitForCompletion();
+
+        yield return DOTween.To(
+            () => rightStar.fillAmount, 
+            amount => rightStar.fillAmount = amount, 1f, 1f)
+            .WaitForCompletion();
+
+        yield return DOTween.To(
+            () => star.fillAmount, 
+            amount => star.fillAmount = amount, 1f, 1f)
+            .WaitForCompletion();
+    }
+
+    
 
     // Use this for initialization
     void Start()
@@ -45,7 +137,7 @@ public class GameManager : MonoBehaviour
             new[] {"level"}, StringSplitOptions.None)[1];
 
         var selected = int.Parse(level);
-        SelectedLevel = Levels[selected - 1];
+        SetLevel(selected - 1);
 
         LoadLevel();
     }
@@ -60,6 +152,12 @@ public class GameManager : MonoBehaviour
     {
         DontDestroyOnLoad(this);
         _screenFader.EndScene("levels");
+    }
+
+    public void OnClickEasy()
+    {
+        EasyMode = true;
+        OnClickPlay();
     }
 
     public void OnClickTitle()
@@ -79,5 +177,11 @@ public class GameManager : MonoBehaviour
     {
         DontDestroyOnLoad(this);
         _screenFader.EndScene("help");
+    }
+
+    public void ShowAd()
+    {
+       var ads = GetComponent<AdLauncher>();
+        ads.ShowAdPlacement();
     }
 }
