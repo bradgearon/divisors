@@ -57,6 +57,7 @@ public class DragDropHandler : MonoBehaviour,
     {
         _inputEnabled = true;
         _selectedObject = null;
+        ScoreManager.Instance.CheckOver();
     }
 
     private IEnumerator CheckMatchedTiles(TileManager tileManager)
@@ -123,6 +124,7 @@ public class DragDropHandler : MonoBehaviour,
             yield return tileManager.FillTiles()
                 .OnComplete(EnableInput)
                 .WaitForCompletion();
+
             EnableInput();
 
             yield break;
@@ -138,6 +140,8 @@ public class DragDropHandler : MonoBehaviour,
             .WaitForCompletion();
 
         EnableInput();
+
+        ScoreManager.Instance.CheckOver();
     }
 
     private IEnumerable<YieldInstruction> HandleTiles(

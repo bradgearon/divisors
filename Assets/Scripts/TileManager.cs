@@ -507,17 +507,8 @@ public class TileManager : MonoBehaviour,
         SetTileColor(new Tile { Image = image, Text = text }, first.Color);
 
         GameObject effect = null;
-        image.transform
-            .DOLocalMove(new Vector3(0, 10f), .75f)
-            .OnComplete(() =>
-            {
-                text.DOFade(0f, .5f);
-                image.DOFade(0f, .5f);
-            })
-            .WaitForCompletion();
-
         var instruction = image.transform
-            .DOScale(new Vector3(2f, 2f, 1f), .75f)
+            .DOLocalMove(new Vector3(0, 10f), .5f)
             .OnComplete(() =>
             {
                 effect = (GameObject)Instantiate(TileEffectPrefab, Panel);
@@ -527,8 +518,17 @@ public class TileManager : MonoBehaviour,
             })
             .WaitForCompletion();
 
-        ScoreManager.AddScore(scoreValue);
+        image.transform
+            .DOScale(new Vector3(2f, 2f, 1f), .5f)
+            .OnComplete(() =>
+            {
+                text.DOFade(0f, .25f);
+                image.DOFade(0f, .25f);
 
+                ScoreManager.Display(scoreValue);
+                ScoreManager.AddScore(scoreValue);
+            })
+            .WaitForCompletion();
         return instruction;
     }
 
@@ -551,10 +551,10 @@ public class TileManager : MonoBehaviour,
             var tile1 = tile;
             var originalPosition = tile1.Image.transform.position;
             instruction = tile.Image.transform
-                .DOMove(average, .75f)
+                .DOMove(average, .5f)
                 .OnComplete(() =>
                 {
-                    tile1.Image.transform.DOScale(Vector2.zero, .75f)
+                    tile1.Image.transform.DOScale(Vector2.zero, .5f)
                     .OnComplete(() =>
                         {
                             tile1.Image.transform.localScale = Vector3.one;

@@ -1,17 +1,20 @@
 ﻿using UnityEngine;
 using System.Collections;
+using DG.Tweening;
 using UnityEngine.UI;
 
 public class ScoreManager : MonoBehaviour
 {
     public Text scoreDisplay;
     public Text stepDisplay;
+    public Text scorePop;
 
     public int scoreMultiplier = 100;
 
     public int maxSteps = 10;
     public int stepsTaken = 0;
     private int score = 0;
+    private Vector3 initialPosition;
 
     public static ScoreManager Instance { get; set; }
 
@@ -19,6 +22,7 @@ public class ScoreManager : MonoBehaviour
     void Start()
     {
         Instance = this;
+        initialPosition = scorePop.transform.position;
     }
 
     // Update is called once per frame
@@ -32,8 +36,11 @@ public class ScoreManager : MonoBehaviour
         stepsTaken++;
         var remaining = maxSteps - stepsTaken;
         stepDisplay.text = remaining + string.Empty;
+    }
 
-        if (remaining < 1)
+    public void CheckOver()
+    {
+        if (maxSteps - stepsTaken < 1)
         {
             GameManager.Instance.OnGameOver(score);
         }
@@ -43,6 +50,24 @@ public class ScoreManager : MonoBehaviour
     {
         score += Mathf.RoundToInt(value * scoreMultiplier);
         scoreDisplay.text = score + string.Empty;
+    }
+
+    public void Display(int value)
+    {
+        scorePop.gameObject.SetActive(true);
+        scorePop.transform.position = initialPosition;
+        scorePop.DOFade(1, 0f);
+
+        scorePop.text = "+" + value * scoreMultiplier + "";
+
+        scorePop.transform.DOMoveY(initialPosition.y + 200, .5f)
+            .OnComplete(() =>
+            {
+                scorePop.DOFade(0f, .5f).OnComplete(() =>
+                {
+                    scorePop.gameObject.SetActive(false);
+                });
+            });
     }
 
 }
