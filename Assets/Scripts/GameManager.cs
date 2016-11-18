@@ -17,18 +17,19 @@ public class GameManager : MonoBehaviour
     void Awake()
     {
         Instance = this;
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        _screenFader = GetComponent<ScreenFader>();
     }
 
     // Use this for initialization
     void Start()
     {
-        SceneManager.sceneLoaded += OnSceneLoaded;
-        _screenFader = GetComponent<ScreenFader>();
+
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        
+
     }
 
     // Update is called once per frame
@@ -72,5 +73,11 @@ public class GameManager : MonoBehaviour
         Score = score;
         DontDestroyOnLoad(this);
         _screenFader.EndScene("gameover");
+    }
+
+    public void OnClickHelp()
+    {
+        DontDestroyOnLoad(this);
+        _screenFader.EndScene("help");
     }
 }

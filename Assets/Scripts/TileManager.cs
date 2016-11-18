@@ -50,12 +50,6 @@ public class TileManager : MonoBehaviour,
 
     void Start()
     {
-        if (GameManager.Instance == null)
-        {
-            var prefab = Resources.Load("GameManager");
-            Instantiate(prefab);
-        }
-
         if (GameManager.Instance.SelectedLevel != null)
         {
             var selectedLevel = GameManager.Instance.SelectedLevel;
@@ -663,11 +657,6 @@ public class TileManager : MonoBehaviour,
         text.color = new Color(textColor.r, textColor.g, textColor.b, 1f);
 
         return current.Image.transform.DOMoveY(posY, 1f);
-    }
-
-    public void OnRestartClick()
-    {
-        GameManager.Instance.LoadLevel();
     }
 
 }
