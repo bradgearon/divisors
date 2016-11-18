@@ -7,12 +7,16 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using DG.Tweening;
 using DG.Tweening.Core;
+using Facebook.Unity;
 
 public class GameManager : MonoBehaviour
 {
     private ScreenFader _screenFader;
     public Level SelectedLevel { get; private set; }
     public bool EasyMode = false;
+
+    public string facebookAppLinkUrl = "https://fb.me/1279421248782463";
+    public string facebookPreviewImage = "https://github.com/bradgearon/divisors/raw/master/Assets/Textures/images/app-icon-512.png";
 
     public string leftStarName = "left-star";
     public string rightStarName = "right-star";
@@ -48,6 +52,15 @@ public class GameManager : MonoBehaviour
             {
                 Levels[i].HighScore = levels[i].HighScore;
             }
+        }
+
+        if (FB.IsInitialized)
+        {
+            FB.ActivateApp();
+        }
+        else
+        {
+            FB.Init(FB.ActivateApp);
         }
     }
 
@@ -181,7 +194,11 @@ public class GameManager : MonoBehaviour
 
     public void OnClickShare()
     {
-        
+        FB.Mobile.AppInvite(
+            new Uri(facebookAppLinkUrl),
+            new Uri(facebookPreviewImage),
+            (result) => { }
+        );
     }
 
     public void ShowAd()
