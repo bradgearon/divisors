@@ -179,6 +179,11 @@ public class GameManager : MonoBehaviour
         _screenFader.EndScene("help");
     }
 
+    public void OnClickShare()
+    {
+        
+    }
+
     public void ShowAd()
     {
        var ads = GetComponent<AdLauncher>();
