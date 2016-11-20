@@ -54,6 +54,8 @@ public class GameManager : MonoBehaviour
             }
         }
 
+        
+
         if (FB.IsInitialized)
         {
             FB.ActivateApp();

@@ -15,11 +15,11 @@ public class GameOverManager : MonoBehaviour
     public Button nextButton;
     public Button retryButton;
 
-    public string failResult;
-    public string winResult;
+    public string failResultKey;
+    public string winResultKey;
 
-    public string failCaption;
-    public string winCaption;
+    public string failCaptionKey;
+    public string winCaptionKey;
 
     // Use this for initialization
     void Start()
@@ -61,6 +61,12 @@ public class GameOverManager : MonoBehaviour
         yield return GameManager.Instance.SetStars(starTransform, level, true);
 
         var didWin = level.HighScore >= GameManager.Instance.minWin;
+
+        var winCaption = I2.Loc.ScriptLocalization.Get(winCaptionKey);
+        var failCaption = I2.Loc.ScriptLocalization.Get(failCaptionKey);
+
+        var winResult = I2.Loc.ScriptLocalization.Get(winResultKey);
+        var failResult = I2.Loc.ScriptLocalization.Get(failResultKey);
 
         var result = didWin ? winResult : failResult;
         var caption = didWin ? winCaption : failCaption;
