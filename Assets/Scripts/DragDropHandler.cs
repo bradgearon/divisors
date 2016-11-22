@@ -7,6 +7,7 @@ using DG.Tweening;
 using DG.Tweening.Core;
 using UnityEngine;
 using System.Collections;
+using JetBrains.Annotations;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -60,7 +61,7 @@ public class DragDropHandler : MonoBehaviour,
         ScoreManager.Instance.CheckOver();
     }
 
-    private IEnumerator CheckMatchedTiles(TileManager tileManager)
+    private IEnumerator CheckMatchedTiles([CanBeNull] TileManager tileManager)
     {
         _currentPointer.transform.DOScale(Vector3.one, .25f);
 
@@ -121,12 +122,16 @@ public class DragDropHandler : MonoBehaviour,
                 yield return yieldInstruction;
             }
 
-            yield return tileManager.FillTiles()
+            Tweener lastFill = null;
+            foreach (var fill in tileManager.FillTiles())
+            {
+                yield return lastFill = fill;
+            }
+
+            lastFill
                 .OnComplete(EnableInput)
                 .WaitForCompletion();
-
-            EnableInput();
-
+            
             yield break;
         }
 

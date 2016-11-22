@@ -19,23 +19,4 @@ public static class ByteExtensions
         yield return x;
     }
 
-    public static Tile Left(this Tile tile)
-    {
-        return TileManager.Instance.Left(tile.Index);
-    }
-
-    public static Tile Right(this Tile tile)
-    {
-        return TileManager.Instance.Right(tile.Index);
-    }
-
-    public static Tile Bottom(this Tile tile)
-    {
-        return TileManager.Instance.Bottom(tile.Index);
-    }
-
-    public static Tile Top(this Tile tile)
-    {
-        return TileManager.Instance.Top(tile.Index);
-    }
 }

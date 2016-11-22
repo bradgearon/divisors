@@ -9,8 +9,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
-public class TileManager : MonoBehaviour,
-    ITileNavigator
+public class TileManager : MonoBehaviour
 {
     public static TileManager Instance
     {
@@ -453,53 +452,6 @@ public class TileManager : MonoBehaviour,
         }
     }
 
-    public Tile Left(int i)
-    {
-        Tile tile = null;
-        var isFirst = i > 4 && i % 5 == 0;
-        var left = i - 1;
-
-        if (!isFirst && left >= 0)
-        {
-            tile = _tiles[left];
-        }
-        return tile;
-    }
-
-    public Tile Right(int i)
-    {
-        Tile tile = null;
-        var isLast = (i + 1) % 5 == 0;
-        var right = i + 1;
-        if (!isLast && right <= _tiles.Length)
-        {
-            tile = _tiles[right];
-        }
-        return tile;
-    }
-
-    public Tile Top(int i)
-    {
-        Tile tile = null;
-        var top = i - 5;
-        if (top >= 0)
-        {
-            tile = _tiles[top];
-        }
-        return tile;
-    }
-
-    public Tile Bottom(int i)
-    {
-        Tile tile = null;
-        var bottom = i + 5;
-        if (bottom < _tiles.Length)
-        {
-            tile = _tiles[bottom];
-        }
-        return tile;
-    }
-
     public YieldInstruction AddStatusTile(IEnumerable<Tile> matches, byte[] values)
     {
         var enumerable = matches as Tile[] ?? matches.ToArray();
@@ -616,65 +568,71 @@ public class TileManager : MonoBehaviour,
         return instruction;
     }
 
-    public Tweener FillTiles()
+    public IEnumerable<Tweener> FillTiles()
     {
         lock (_locker)
         {
-            Tweener instruction = null;
             var last = _tiles.Last();
             var bottom = last;
-            var newArray = new Tile[30];
+            var newArray = new Tile[_tiles.Length];
+            var lastBottom = bottom.Index + 1 - columns;
+
 
             // for each column (at the bottom)
             while (bottom != null)
             {
                 var current = bottom;
-                var first = _tiles[bottom.Index - 25];
-                var posY = new float[6];
+                var first = _tiles[bottom.Index - lastBottom];
+                var posY = new float[rows];
 
                 var empty = 0;
 
                 var counter = first;
                 var ii = 0;
+
                 // count empty tiles
                 while (counter != null)
                 {
                     posY[ii++] = counter.Image.transform.position.y;
-                    counter = counter.Bottom();
+                    
+                    var under = counter.Index + columns;
+                    counter = under < _tiles.Length ? _tiles[under] : null;
                 }
 
-                var spot = 5;
+                var spot = rows - 1;
                 // for each row
                 while (current != null)
                 {
                     var index = current.Index;
-                    index += (5 * empty);
+                    index += (columns * empty);
 
                     // if this one is empty
                     if (current.Number == 0)
                     {
                         index = first.Index;
-                        var pos = posY[empty++];
-                        instruction = MoveOffAndOnToBoard(current, posY[0], empty, pos);
-
-                        first = first.Bottom();
+                        yield return MoveOffAndOnToBoard(current, posY[empty++]);
+                        var under = first.Index + columns;
+                        first = under < _tiles.Length ? _tiles[under] : null;
                     }
                     else if (empty > 0)
                     {
                         var pos = posY[empty + spot];
-                        instruction = current.Image.transform.DOMoveY(pos, 1f);
+                        yield return current.Image.transform.DOMoveY(pos, 1f);
                     }
 
 
-                    index = Math.Max(0, Math.Min(index, 29));
-                    Debug.Log("tile: " + current.Index + " now: " + index);
+                    index = Math.Max(0, Math.Min(index, _tiles.Length - 1));
 
                     newArray[index] = current;
-                    current = current.Top();
+                    
+                    var top = current.Index - columns;
+                    current = top >= 0 ? _tiles[top] : null;
                     spot--;
                 }
 
-                bottom = bottom.Left();
+                var left = --bottom.Index;
+                
+                bottom = left >= lastBottom ? _tiles[left] : null;
             }
 
             for (var i = 0; i < newArray.Length; i++)
@@ -683,14 +641,10 @@ public class TileManager : MonoBehaviour,
                 _tiles[i] = newArray[i];
 
             }
-
-            return instruction;
         }
     }
 
-    private Tweener MoveOffAndOnToBoard(Tile current,
-        float posFirstY, int emptySpots, float posY,
-        Action after = null)
+    private Tweener MoveOffAndOnToBoard(Tile current, float posY)
     {
         var offBoardY = TopTransform.position.y;
         var image = current.Image;

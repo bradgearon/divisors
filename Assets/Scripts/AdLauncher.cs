@@ -23,7 +23,7 @@ public class AdLauncher : MonoBehaviour {
             zoneId = null;
         }
 
-        if (DateTime.Now < new DateTime(2016, 11, 24))
+        if (false && DateTime.Now < new DateTime(2016, 11, 24))
         {
             return;
         }
