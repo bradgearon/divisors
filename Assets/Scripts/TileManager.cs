@@ -81,7 +81,10 @@ public class TileManager : MonoBehaviour
 
     public static void SetPivot(RectTransform rectTransform, Vector2 pivot)
     {
-        if (rectTransform == null) return;
+        if (rectTransform == null)
+        {
+            return;
+        }
 
         var size = rectTransform.rect.size;
         var deltaPivot = rectTransform.pivot - pivot;
@@ -254,7 +257,9 @@ public class TileManager : MonoBehaviour
     public void RandomizeTiles()
     {
         foreach (var tile in _tiles.Where(t => t.Number == 0))
+        {
             setTileNumberColor(tile);
+        }
     }
 
     private void setTileNumberColor(Tile tile)
@@ -278,7 +283,9 @@ public class TileManager : MonoBehaviour
                 for (var i = 0; i < easyFactors.Length; i++)
                 {
                     if (factor != easyFactors[i])
+                    {
                         continue;
+                    }
 
                     found = true;
                     color = i;
@@ -288,7 +295,9 @@ public class TileManager : MonoBehaviour
                 }
 
                 if (found)
+                {
                     break;
+                }
             }
         }
 
@@ -323,7 +332,9 @@ public class TileManager : MonoBehaviour
                 .Except(exclude);
 
             if ((f < 6) || (facts.Count() > 1))
+            {
                 factors.Add(f);
+            }
         }
 
         return factors.Distinct();
@@ -332,7 +343,9 @@ public class TileManager : MonoBehaviour
     private TileMatch GetPreviousMatches(TileMatch match, TileMatch current)
     {
         if ((match.Factors == null) || (match.Factors.Length < 1))
+        {
             return match;
+        }
 
         var previousMatching = match.Factors
             .Intersect(current.Factors).ToArray();
@@ -358,7 +371,9 @@ public class TileManager : MonoBehaviour
             var tile = _tiles[i];
             var newFactors = factors.Intersect(tile.Number.Factors()).ToArray();
             if (!newFactors.Any())
+            {
                 break;
+            }
 
             factors = newFactors;
             tiles.Add(tile);
@@ -394,7 +409,9 @@ public class TileManager : MonoBehaviour
         {
             var withPrevious = getMatches(previous, start.Index + offset, offset, max);
             if (withPrevious.Tiles.Length > newMatch.Tiles.Length)
+            {
                 return withPrevious;
+            }
         }
 
         return newMatch;
@@ -421,7 +438,9 @@ public class TileManager : MonoBehaviour
         var first = enumerable.FirstOrDefault();
         var last = enumerable.LastOrDefault();
         if ((first == null) || (last == null) || values.Any(a => a == 0))
+        {
             return null;
+        }
 
         var firstRect = first.Image.transform;
         var lastRect = last.Image.transform;
@@ -429,12 +448,16 @@ public class TileManager : MonoBehaviour
         var centerPosition = new Vector3(lastRect.position.x, lastRect.position.y, 100);
         // vertical matches
         if (Mathf.Approximately(firstRect.position.x, lastRect.position.x))
+        {
             centerPosition.y = firstRect.position.y +
                                .5f*(lastRect.position.y - firstRect.position.y);
+        }
         // horizontal matches
         else
+        {
             centerPosition.x = firstRect.position.x +
                                .5f*(lastRect.position.x - firstRect.position.x);
+        }
 
         var child = _tilePrefabInstance;
         child.transform.SetParent(Panel);
