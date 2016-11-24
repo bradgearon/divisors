@@ -190,7 +190,7 @@ public class GameManager : MonoBehaviour
 
     public void OnTrackAppNext()
     {
-        var tracking = GetComponent<AppNextTracking>();
+        var tracking = gameObject.GetComponent<AppNextTracking>();
         tracking.Track();
     }
 

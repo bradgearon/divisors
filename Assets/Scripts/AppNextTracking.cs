@@ -6,7 +6,7 @@ public class AppNextTracking : MonoBehaviour
 {
     public void Track()
     {
-#if UNITY_ANDROID
+#if UNITY_ANDROID && !UNITY_EDITOR
         using (AndroidJavaClass appNextTrack = new AndroidJavaClass("com.appnext.appnextsdk.AppnextTrack"),
                     player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
         {

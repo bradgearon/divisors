@@ -20,7 +20,7 @@ public class TileManager : MonoBehaviour
     public int columns = 5;
     private readonly bool debugPlacement = false;
     public Vector2 DragBounds;
-    private readonly byte[] easyFactors = {2, 3, 4, 5, 6, 7, 8, 9};
+    private readonly byte[] easyFactors = { 2, 3, 4, 5, 6, 7, 8, 9 };
 
     private bool easyMode;
     public byte level = 1;
@@ -53,7 +53,7 @@ public class TileManager : MonoBehaviour
 
             Min = selectedLevel.Min;
             Max = selectedLevel.Max;
-            level = (byte) selectedLevel.Multiplier;
+            level = (byte)selectedLevel.Multiplier;
         }
 
         _tilePrefabInstance = Instantiate(TilePrefab);
@@ -88,14 +88,14 @@ public class TileManager : MonoBehaviour
 
         var size = rectTransform.rect.size;
         var deltaPivot = rectTransform.pivot - pivot;
-        var deltaPosition = new Vector2(deltaPivot.x*size.x, deltaPivot.y*size.y);
+        var deltaPosition = new Vector2(deltaPivot.x * size.x, deltaPivot.y * size.y);
         rectTransform.pivot = pivot;
-        rectTransform.localPosition -= (Vector3) deltaPosition;
+        rectTransform.localPosition -= (Vector3)deltaPosition;
     }
 
     private void CreateTiles(RectTransform tilePrefabTransform)
     {
-        var tileCount = rows*columns;
+        var tileCount = rows * columns;
 
         _tiles = new Tile[tileCount];
         _imageElements = new Image[tileCount];
@@ -110,13 +110,13 @@ public class TileManager : MonoBehaviour
         rowPrefabTransform.anchorMax = new Vector2(1, 1);
 
         var tileContainerTransform = TileContainer.GetComponent<RectTransform>();
-        var tileWidth = (tileContainerTransform.rect.width - columns*tilePadding)/columns;
+        var tileWidth = (tileContainerTransform.rect.width - columns * tilePadding) / columns;
         Debug.Log("tile width: " + tileWidth);
 
         for (var row = 0; row < rows; row++)
         {
             // create the row
-            var rowContainer = (GameObject) Instantiate(rowPrefab, TileContainer, false);
+            var rowContainer = (GameObject)Instantiate(rowPrefab, TileContainer, false);
 
             rowContainer.name = "row";
             rowContainer.transform.localScale = Vector3.one;
@@ -126,17 +126,17 @@ public class TileManager : MonoBehaviour
             // set padding
             var rowHeight = tilePrefabTransform.sizeDelta.y + rowPadding;
 
-            rowTransform.anchoredPosition = new Vector2(0, (row + 1)*-rowHeight - rowPadding);
+            rowTransform.anchoredPosition = new Vector2(0, (row + 1) * -rowHeight - rowPadding);
             rowTransform.sizeDelta = new Vector2(0, rowHeight);
 
             // fill it with tiles
             for (var column = 0; column < columns; column++)
             {
-                var tile = (GameObject) Instantiate(_tilePrefabInstance, rowContainer.transform, false);
+                var tile = (GameObject)Instantiate(_tilePrefabInstance, rowContainer.transform, false);
                 tile.transform.SetSiblingIndex(column);
 
-                _imageElements[row*columns + column] = tile.GetComponentInChildren<Image>();
-                _textElements[row*columns + column] = tile.GetComponentInChildren<Text>();
+                _imageElements[row * columns + column] = tile.GetComponentInChildren<Image>();
+                _textElements[row * columns + column] = tile.GetComponentInChildren<Text>();
 
                 tile.layer = tileLayer;
                 tile.name = "Button";
@@ -151,9 +151,9 @@ public class TileManager : MonoBehaviour
                 tileTransform.anchorMin = new Vector2(0, 0);
                 tileTransform.anchorMax = new Vector2(0, 0);
 
-                var leftPadding = tilePadding*column + tilePadding;
+                var leftPadding = tilePadding * column + tilePadding;
                 tileTransform.anchoredPosition = new Vector2(
-                    column*tilePrefabTransform.sizeDelta.x + leftPadding, tilePadding);
+                    column * tilePrefabTransform.sizeDelta.x + leftPadding, tilePadding);
 
                 SetPivot(tileTransform, new Vector2(0.5f, 0.5f));
             }
@@ -164,7 +164,7 @@ public class TileManager : MonoBehaviour
     {
         InitTiles(_imageElements, _textElements);
 
-        var range = Enumerable.Range(Min*level, Max*level + 1);
+        var range = Enumerable.Range(Min * level, Max * level + 1);
         _possible = BuildFactors(range).ToArray();
 
         RandomizeTiles();
@@ -244,9 +244,9 @@ public class TileManager : MonoBehaviour
                 continue;
             }
 
-            var newText = (Text) Instantiate(_tiles[i].Text, _tiles[i].Text.transform);
+            var newText = (Text)Instantiate(_tiles[i].Text, _tiles[i].Text.transform);
             newText.transform.localPosition = new Vector3(5, 1, 0);
-            newText.text = string.Format(" {0}", i);
+            newText.text = String.Format(" {0}", i);
         }
     }
 
@@ -324,7 +324,7 @@ public class TileManager : MonoBehaviour
     private IEnumerable<byte> BuildFactors(IEnumerable<int> range)
     {
         var factors = new List<byte>();
-        var exclude = new byte[] {1};
+        var exclude = new byte[] { 1 };
 
         foreach (byte f in range)
         {
@@ -391,14 +391,14 @@ public class TileManager : MonoBehaviour
     {
         var axisLength = axis == TileAxis.Horizontal ? 1 : columns;
         var max = Math.Abs(axis == TileAxis.Horizontal
-            ? (direction > 0 ? start.Index%columns - columns + 1 : start.Index%columns)
+            ? (direction > 0 ? start.Index % columns - columns + 1 : start.Index % columns)
             : _tiles.Length);
-        var offset = direction*axisLength;
+        var offset = direction * axisLength;
 
         var factors = start.Number.Factors().ToArray();
         var tileMatch = new TileMatch
         {
-            Tiles = new[] {start},
+            Tiles = new[] { start },
             Factors = factors
         };
 
@@ -450,13 +450,13 @@ public class TileManager : MonoBehaviour
         if (Mathf.Approximately(firstRect.position.x, lastRect.position.x))
         {
             centerPosition.y = firstRect.position.y +
-                               .5f*(lastRect.position.y - firstRect.position.y);
+                               .5f * (lastRect.position.y - firstRect.position.y);
         }
         // horizontal matches
         else
         {
             centerPosition.x = firstRect.position.x +
-                               .5f*(lastRect.position.x - firstRect.position.x);
+                               .5f * (lastRect.position.x - firstRect.position.x);
         }
 
         var child = _tilePrefabInstance;
@@ -483,15 +483,15 @@ public class TileManager : MonoBehaviour
         var scoreValue = factors
             .FirstOrDefault(f => f > 1);
 
-        text.text = scoreValue + string.Empty;
-        SetTileColor(new Tile {Image = image, Text = text}, first.Color);
+        text.text = scoreValue + String.Empty;
+        SetTileColor(new Tile { Image = image, Text = text }, first.Color);
 
         GameObject effect = null;
         var instruction = image.transform
             .DOLocalMove(new Vector3(0, 10f), .5f)
             .OnComplete(() =>
             {
-                effect = (GameObject) Instantiate(TileEffectPrefab, Panel);
+                effect = (GameObject)Instantiate(TileEffectPrefab, Panel);
                 effect.transform.localScale = Vector3.one;
                 effect.transform.localPosition = new Vector3(0, 0, 100);
                 effect.GetComponent<ParticleSystem>().DOPlay();
@@ -519,9 +519,11 @@ public class TileManager : MonoBehaviour
             parts.Average(part => part.y));
     }
 
-    public YieldInstruction RemovessExistingMatches(Tile[] matches)
+    public YieldInstruction RemovessExistingMatches(IEnumerable<Tile> matches)
     {
         YieldInstruction instruction = null;
+        matches = matches.ToArray();
+
         var matchesPositions = matches
             .Select(match => match.Image.transform.position);
         var average = Average(matchesPositions);
@@ -548,7 +550,7 @@ public class TileManager : MonoBehaviour
         return instruction;
     }
 
-    public IEnumerable<Tweener> FillTiles()
+    public IEnumerable<YieldInstruction> FillTiles()
     {
         lock (_locker)
         {
@@ -584,20 +586,26 @@ public class TileManager : MonoBehaviour
                 while (current != null)
                 {
                     var index = current.Index;
-                    index += columns*empty;
+                    index += columns * empty;
 
                     // if this one is empty
                     if (current.Number == 0)
                     {
                         index = first.Index;
-                        yield return MoveOffAndOnToBoard(current, posY[empty++]);
+                        foreach (var match in MoveOffAndOnToBoard(current, posY[empty++]))
+                        {
+                            yield return match;
+                        }
+
                         var under = first.Index + columns;
                         first = under < _tiles.Length ? _tiles[under] : null;
+
                     }
                     else if (empty > 0)
                     {
                         var pos = posY[empty + spot];
-                        yield return current.Image.transform.DOMoveY(pos, 1f);
+                        yield return current.Image.transform.DOMoveY(pos, 1f)
+                            .WaitForCompletion();
                     }
 
 
@@ -623,7 +631,7 @@ public class TileManager : MonoBehaviour
         }
     }
 
-    private Tweener MoveOffAndOnToBoard(Tile current, float posY)
+    private IEnumerable<YieldInstruction> MoveOffAndOnToBoard(Tile current, float posY)
     {
         var offBoardY = TopTransform.position.y;
         var image = current.Image;
@@ -633,7 +641,100 @@ public class TileManager : MonoBehaviour
 
         setTileNumberColor(current);
 
-        return current.Image.transform.DOMoveY(posY, 1f);
+        yield return current.Image.transform
+            .DOMoveY(posY, 1f).WaitForCompletion();
+
+        var matches = FindMatches(current).ToArray();
+
+        foreach (var handleMatch in HandleMatchGroups(matches))
+        {
+            yield return handleMatch;
+        }
+    }
+
+    public IEnumerable<Tile> LongestExclusive(Tile dragged, Tile droppedOn)
+    {
+        Func<IEnumerable<Tile>, bool> notNull = l => l != null;
+        Func<Tile, IEnumerable<Tile>> find = group => FindMatches(group)
+            .Where(notNull)
+            .OrderByDescending(t => t.Count())
+            .FirstOrDefault() ?? new Tile[] {};
+
+        var matches = new[]
+        {
+           find(dragged),
+           find(droppedOn)
+        };
+
+        if (matches[0] != null && matches[1] != null &&
+            matches[0].Intersect(matches[1]).Any())
+        {
+            return matches.OrderByDescending(m => m.Count()).First();
+        }
+
+        return matches.SelectMany(m => m);
+
+        /*        
+         * just in case
+        var draggedMatches = FindMatches(dragged).ToArray();
+        var droppedMatches = FindMatches(droppedOn).ToArray();
+
+        return from dd in draggedMatches.Where(notNull)
+            from ddd in droppedMatches.Where(notNull)
+            select (ddd.Intersect(dd).Any()
+                ? (dd.Count() > ddd.Count() ? dd : ddd)
+                : dd.Union(ddd)).ToArray();
+        */
+    }
+
+    public IEnumerable<YieldInstruction> HandleMatchGroups(IEnumerable<IEnumerable<Tile>> matches)
+    {
+        matches = matches.ToArray();
+
+        if (matches.All(m => m == null))
+        {
+            yield break;
+        }
+
+        foreach (var yieldInstruction in matches
+                .Where(t => t != null)
+                // ReSharper disable once ConvertClosureToMethodGroup
+                .SelectMany(m => RemoveAddStatus(m)))
+        {
+            yield return yieldInstruction;
+        }
+
+        foreach (var fill in FillTiles())
+        {
+            yield return fill;
+        }
+    }
+
+    private IEnumerable<YieldInstruction> RemoveAddStatus(IEnumerable<Tile> tiles)
+    {
+        if (tiles == null)
+        {
+            yield break;
+        }
+
+        tiles = tiles as Tile[] ?? tiles.ToArray();
+
+        var values = (from tile in tiles
+                      where tile.Number > 0
+                      select tile.Number).ToArray();
+
+        if (values.Count() < 3)
+        {
+            yield break;
+        }
+
+        yield return RemovessExistingMatches(tiles);
+        yield return AddStatusTile(tiles, values);
+
+        foreach (var tile in tiles)
+        {
+            tile.Number = 0;
+        }
     }
 
     private enum TileAxis

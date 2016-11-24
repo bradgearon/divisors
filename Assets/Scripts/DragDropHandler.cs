@@ -61,7 +61,7 @@ public class DragDropHandler : MonoBehaviour,
         ScoreManager.Instance.CheckOver();
     }
 
-    private IEnumerator CheckMatchedTiles([CanBeNull] TileManager tileManager)
+    private IEnumerator CheckMatchedTiles(TileManager tileManager)
     {
         _currentPointer.transform.DOScale(Vector3.one, .25f);
 
@@ -72,6 +72,7 @@ public class DragDropHandler : MonoBehaviour,
             _currentPointer.transform);
 
         _selectedObject.transform.SetParent(_initialParent);
+
         var draggedTransform = _selectedObject.gameObject.transform;
         var droppedOnTransform = _currentPointer.transform;
 
@@ -79,60 +80,21 @@ public class DragDropHandler : MonoBehaviour,
 
         draggedTransform
             .DOMove(secondPosition, .5f);
-        
+
         yield return droppedOnTransform
             .DOMove(_initialPosition, .5f)
             .WaitForCompletion();
 
         tileManager.ReplaceTile(dragged, droppedOn);
 
-        var matches = new List<Tile[]>();
-        var draggedMatches = tileManager.FindMatches(dragged).ToArray();
-        var droppedMatches = tileManager.FindMatches(droppedOn).ToArray();
-
-        Func<IEnumerable<Tile>, bool> notNull = l => l != null;
-
-        foreach (var gr in draggedMatches.Where(notNull))
-        {
-            var tiles = gr as Tile[] ?? gr.ToArray();
-            var toAdd = tiles;
-            foreach (var gri in droppedMatches.Where(notNull))
-            {
-                var enumerable = gri.ToArray();
-                if (toAdd.Intersect(enumerable).Any()
-                    && enumerable.Count() > tiles.Count())
-                {
-                    toAdd = enumerable;
-                }
-            }
-            matches.Add(toAdd);
-        }
+        var matches = tileManager.LongestExclusive(dragged, droppedOn);
 
         Debug.Log("step taken");
         ScoreManager.Instance.TakeStep();
 
-        if (matches.Any(m => m != null))
+        foreach (var handleMatch in tileManager.HandleMatchGroups(new [] { matches }))
         {
-            foreach (var yieldInstruction in matches
-                .Where(t => t != null)
-                .SelectMany(tiles => HandleTiles(tiles, tileManager))
-                //.ToArray()
-                )
-            {
-                yield return yieldInstruction;
-            }
-
-            Tweener lastFill = null;
-            foreach (var fill in tileManager.FillTiles())
-            {
-                yield return lastFill = fill;
-            }
-
-            lastFill
-                .OnComplete(EnableInput)
-                .WaitForCompletion();
-            
-            yield break;
+            yield return handleMatch;
         }
 
         // it did not find any matches
@@ -147,27 +109,6 @@ public class DragDropHandler : MonoBehaviour,
         EnableInput();
 
         ScoreManager.Instance.CheckOver();
-    }
-
-    private IEnumerable<YieldInstruction> HandleTiles(
-        Tile[] tiles, TileManager tileManager)
-    {
-        var values = (from tile in tiles
-            where tile.Number > 0
-            select tile.Number).ToArray();
-
-        if (values.Count() < 3)
-        {
-            yield break;
-        }
-
-        yield return tileManager.RemovessExistingMatches(tiles);
-        yield return tileManager.AddStatusTile(tiles, values);
-
-        foreach (var tile in tiles)
-        {
-            tile.Number = 0;
-        }
     }
 
 
@@ -237,7 +178,7 @@ public class DragDropHandler : MonoBehaviour,
         eventData.Use();
         if (!_inputEnabled || _selectedObject == null)
         {
-            return;
+            return; 
         }
 
         _delta += eventData.delta;
@@ -257,7 +198,7 @@ public class DragDropHandler : MonoBehaviour,
         }
 
         var direction = targetPosition - _initialPosition;
-        var raycast = Physics2D.Raycast(_initialPosition, direction, 
+        var raycast = Physics2D.Raycast(_initialPosition, direction,
             _scaledRayDistance, RayLayerMask);
 
         if (raycast.collider == null)
@@ -280,4 +221,6 @@ public class DragDropHandler : MonoBehaviour,
         _currentPointer.transform.DOScale(SelectedScale, .25f);
     }
 
+    
+    
 }
