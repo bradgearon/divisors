@@ -90,7 +90,7 @@ public class TileManager : MonoBehaviour
         var deltaPivot = rectTransform.pivot - pivot;
         var deltaPosition = new Vector2(deltaPivot.x*size.x, deltaPivot.y*size.y);
         rectTransform.pivot = pivot;
-        rectTransform.localPosition -= deltaPosition;
+        rectTransform.localPosition -= (Vector3) deltaPosition;
     }
 
     private void CreateTiles(RectTransform tilePrefabTransform)
