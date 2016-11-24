@@ -40,7 +40,6 @@ public class GameManager : MonoBehaviour
     void Awake()
     {
         Instance = this;
-        SceneManager.sceneLoaded += OnSceneLoaded;
         _screenFader = GetComponent<ScreenFader>();
 
         var levelsJson = PlayerPrefs.GetString("levels");
@@ -54,8 +53,6 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        
-
         if (FB.IsInitialized)
         {
             FB.ActivateApp();
@@ -64,6 +61,11 @@ public class GameManager : MonoBehaviour
         {
             FB.Init(FB.ActivateApp);
         }
+    }
+
+    void Start()
+    {
+        OnTrackAppNext();
     }
 
     public void SetLevel(int level)
@@ -111,45 +113,28 @@ public class GameManager : MonoBehaviour
         }
 
         yield return DOTween.To(
-            () => leftStar.fillAmount, 
+            () => leftStar.fillAmount,
             amount => leftStar.fillAmount = amount, 1f, 1f)
             .WaitForCompletion();
 
         yield return DOTween.To(
-            () => rightStar.fillAmount, 
+            () => rightStar.fillAmount,
             amount => rightStar.fillAmount = amount, 1f, 1f)
             .WaitForCompletion();
 
         yield return DOTween.To(
-            () => star.fillAmount, 
+            () => star.fillAmount,
             amount => star.fillAmount = amount, 1f, 1f)
             .WaitForCompletion();
     }
 
     
 
-    // Use this for initialization
-    void Start()
-    {
-
-    }
-
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
-
     public void OnClickLevel()
     {
         var clicked = EventSystem.current.currentSelectedGameObject;
         var level = clicked.name.ToLower().Split(
-            new[] {"level"}, StringSplitOptions.None)[1];
+            new[] { "level" }, StringSplitOptions.None)[1];
 
         var selected = int.Parse(level);
         SetLevel(selected - 1);
@@ -203,9 +188,15 @@ public class GameManager : MonoBehaviour
         );
     }
 
+    public void OnTrackAppNext()
+    {
+        var tracking = GetComponent<AppNextTracking>();
+        tracking.Track();
+    }
+
     public void ShowAd()
     {
-       var ads = GetComponent<AdLauncher>();
+        var ads = GetComponent<AdLauncher>();
         ads.ShowAdPlacement();
     }
 }
