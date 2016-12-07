@@ -604,8 +604,7 @@ public class TileManager : MonoBehaviour
                     else if (empty > 0)
                     {
                         var pos = posY[empty + spot];
-                        yield return current.Image.transform.DOMoveY(pos, 1f)
-                            .WaitForCompletion();
+                        current.Image.transform.DOMoveY(pos, 1f);
                     }
 
 
@@ -641,15 +640,16 @@ public class TileManager : MonoBehaviour
 
         setTileNumberColor(current);
 
-        yield return current.Image.transform
-            .DOMoveY(posY, 1f).WaitForCompletion();
+        yield return current.Image.transform.DOMoveY(posY, 1f).WaitForCompletion();
 
         var matches = FindMatches(current).ToArray();
 
-        foreach (var handleMatch in HandleMatchGroups(matches))
+        foreach (var handleMatchGroup in HandleMatchGroups(matches))
         {
-            yield return handleMatch;
+            yield return handleMatchGroup;
         }
+
+        yield return null;
     }
 
     public IEnumerable<Tile> LongestExclusive(Tile dragged, Tile droppedOn)
