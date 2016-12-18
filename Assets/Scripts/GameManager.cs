@@ -8,6 +8,7 @@ using UnityEngine.UI;
 using DG.Tweening;
 using DG.Tweening.Core;
 using Facebook.Unity;
+using I2.Loc;
 
 public class GameManager : MonoBehaviour
 {
@@ -37,8 +38,13 @@ public class GameManager : MonoBehaviour
     public Level[] Levels = new Level[12];
     public int LevelIndex = 0;
 
+    
+
     void Awake()
     {
+
+        Debug.Log("on awake:" + Application.systemLanguage);
+        Debug.Log("current I2 Language: " + LocalizationManager.CurrentLanguage);
         Instance = this;
         _screenFader = GetComponent<ScreenFader>();
 
@@ -53,6 +59,11 @@ public class GameManager : MonoBehaviour
             }
         }
 
+
+#if !UNITY_EDITOR
+        UntitledLauncher.Init();
+#endif
+
         if (FB.IsInitialized)
         {
             FB.ActivateApp();
@@ -61,6 +72,7 @@ public class GameManager : MonoBehaviour
         {
             FB.Init(FB.ActivateApp);
         }
+
     }
 
     void Start()
@@ -192,11 +204,5 @@ public class GameManager : MonoBehaviour
     {
         var tracking = GetComponent<AppNextTracking>();
         tracking.Track();
-    }
-
-    public void ShowAd()
-    {
-        var ads = GetComponent<AdLauncher>();
-        ads.ShowAdPlacement();
     }
 }

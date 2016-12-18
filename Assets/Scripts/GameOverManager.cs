@@ -80,7 +80,7 @@ public class GameOverManager : MonoBehaviour
 
         if (Random.Range(0f, 1f) < .77f)
         {
-            GameManager.Instance.ShowAd();
+            UntitledLauncher.Show();
         }
 
         nextButton.gameObject.SetActive(didWin);

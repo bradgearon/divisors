@@ -46,3 +46,5 @@ UnityEditor.xml
 UnityEngine.UI.xml
 UnityEngine.xml
 /*.apk
+/Assets/Editor/PreloadSigningAlias.cs
+/Assets/Editor/PreloadSigningAlias.cs.meta
