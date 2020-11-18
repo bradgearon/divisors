@@ -202,14 +202,14 @@ public class TileManager : MonoBehaviour
     /// </summary>
     /// <param name="current">starting point</param>
     /// <returns>a list of lists... of tiles</returns>
-    public IEnumerable<IEnumerable<Tile>> FindMatches(Tile current)
+    public Tile[][] FindMatches(Tile current)
     {
         Debug.Log("enter find matches");
 
         return CheckDirections(current);
     }
 
-    private IEnumerable<IEnumerable<Tile>> CheckDirections(Tile current)
+    private Tile[][] CheckDirections(Tile current)
     {
         var matches = new TileMatch[4];
 
@@ -218,9 +218,20 @@ public class TileManager : MonoBehaviour
         matches[2] = GetMatchesNew(current, TileAxis.Vertical, 1, default(TileMatch));
         matches[3] = GetMatchesNew(current, TileAxis.Vertical, -1, matches[2]);
 
-        return matches
-            .Where(arr => arr.Tiles.Length > 2)
-            .Select(arr => arr.Tiles.AsEnumerable());
+        var eligibleCount = matches.Count(match => match.Tiles.Length > 2);
+
+        var eligible = new Tile[eligibleCount][];
+        var ii = 0;
+
+        foreach (var match in matches)
+        {
+            if (match.Tiles.Length > 2)
+            {
+                eligible[ii++] = match.Tiles;
+            }
+        }
+
+        return eligible;
     }
 
     /// <summary>
@@ -353,7 +364,9 @@ public class TileManager : MonoBehaviour
         if (previousMatching.Any())
         {
             match.Factors = previousMatching;
-            match.Tiles = match.Tiles.Union(current.Tiles).ToArray();
+            match.Tiles = match.Tiles
+                .Where(t => !current.Tiles.Contains(t))
+                .Union(current.Tiles).ToArray();
         }
 
         return match;
@@ -379,9 +392,11 @@ public class TileManager : MonoBehaviour
             tiles.Add(tile);
         }
 
+        match.Factors = factors;
+        
         return new TileMatch
         {
-            Tiles = tiles.ToArray(),
+            Tiles = tiles.Distinct().ToArray(),
             Factors = factors
         };
     }
@@ -403,7 +418,7 @@ public class TileManager : MonoBehaviour
         };
 
         var newMatch = getMatches(tileMatch, start.Index + offset, offset, max);
-        var previous = GetPreviousMatches(previousMatch, tileMatch);
+        var previous = GetPreviousMatches(previousMatch, newMatch);
 
         if (previous.Factors != null)
         {

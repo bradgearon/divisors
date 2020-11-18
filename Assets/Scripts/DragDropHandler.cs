@@ -87,16 +87,17 @@ public class DragDropHandler : MonoBehaviour,
         tileManager.ReplaceTile(dragged, droppedOn);
 
         var matches = new List<Tile[]>();
-        var draggedMatches = tileManager.FindMatches(dragged).ToArray();
-        var droppedMatches = tileManager.FindMatches(droppedOn).ToArray();
+
+        var draggedMatches = tileManager.FindMatches(dragged);
+        var droppedMatches = tileManager.FindMatches(droppedOn);
 
         Func<IEnumerable<Tile>, bool> notNull = l => l != null;
 
-        foreach (var gr in draggedMatches.Where(notNull))
+        foreach (var tiles in draggedMatches)
         {
-            var tiles = gr as Tile[] ?? gr.ToArray();
             var toAdd = tiles;
-            foreach (var gri in droppedMatches.Where(notNull))
+
+            foreach (var gri in droppedMatches)
             {
                 var enumerable = gri.ToArray();
                 if (toAdd.Intersect(enumerable).Any()
@@ -105,7 +106,30 @@ public class DragDropHandler : MonoBehaviour,
                     toAdd = enumerable;
                 }
             }
+
             matches.Add(toAdd);
+        }
+
+        var first = droppedMatches.OrderBy(t => t.Length).FirstOrDefault();
+        if (first != null)
+        {
+            matches.Add(first);
+        }
+
+        foreach (var tiles in droppedMatches)
+        {
+            var toAdd = tiles;
+            foreach (var gr in draggedMatches)
+            {
+                var enumerable = gr.ToArray();
+                if (toAdd.Intersect(enumerable).Any()
+                    && enumerable.Count() > tiles.Count())
+                {
+                    toAdd = enumerable;
+                }
+
+                matches.Add(toAdd);
+            }
         }
 
         Debug.Log("step taken");
